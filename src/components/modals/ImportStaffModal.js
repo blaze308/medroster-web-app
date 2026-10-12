@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { auth } from '../../lib/firebase';
 
@@ -305,20 +305,17 @@ function HospitalImportModal({
                         {lockWard && (
                             <p className="text-xs font-medium text-ghs-muted">Saving to <span className="font-bold text-ghs-deep">{wardName}</span>.</p>
                         )}
-                        <div>
-                            <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">
-                                {path === 'csv' ? 'Upload CSV' : 'Upload duty roster (Word, Excel, PDF, or photo)'}
-                            </label>
-                            <input
-                                type="file"
-                                accept={path === 'csv' ? '.csv,text/csv' : ROSTER_ACCEPT}
-                                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                                className="mt-1 block w-full text-sm"
-                            />
-                            {file && (
-                                <p className="text-[11px] text-ghs-muted font-medium mt-1">{file.name}</p>
-                            )}
-                        </div>
+                        <FileDropZone
+                            accept={path === 'csv' ? '.csv,text/csv' : ROSTER_ACCEPT}
+                            file={file}
+                            onFile={setFile}
+                            title={path === 'csv' ? 'Drop your CSV here, or click to browse' : 'Drop your roster here, or click to browse'}
+                            hint={
+                                path === 'csv'
+                                    ? 'CSV only · max 10 MB'
+                                    : 'Word (.docx), Excel (.xlsx), PDF, or photo (PNG, JPG, WebP) · max 10 MB'
+                            }
+                        />
                     </div>
                 )}
 
@@ -663,15 +660,13 @@ function CsvImmediateModal({ mode, hospitalId, departments, wards, onClose, onIm
                         />
                     )}
 
-                    <div>
-                        <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">Upload completed CSV</label>
-                        <input
-                            type="file"
-                            accept=".csv,text/csv"
-                            onChange={(e) => setFile(e.target.files?.[0] || null)}
-                            className="mt-1 block w-full text-sm"
-                        />
-                    </div>
+                    <FileDropZone
+                        accept=".csv,text/csv"
+                        file={file}
+                        onFile={setFile}
+                        title="Drop your completed CSV here, or click to browse"
+                        hint="CSV only · max 10 MB"
+                    />
 
                     {error && (
                         <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 text-xs font-bold text-rose-600">{error}</div>
