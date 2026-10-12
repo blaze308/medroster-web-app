@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { isStaffOnLeave, classifyStaffType } from '../../lib/staff-utils';
+import { preferredSourceCode } from '../../lib/roster-setup';
+import { displayCodeForAssignment } from '../../lib/roster-export-data';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -47,8 +49,17 @@ function getLeaveRecord(staff, date) {
     }) || null;
 }
 
-export default function CalendarGrid({ startDate, endDate, holidays = [], staff, assignments, onCellClick }) {
+export default function CalendarGrid({
+    startDate,
+    endDate,
+    holidays = [],
+    staff,
+    assignments,
+    onCellClick,
+    rosterSetup = null,
+}) {
     const days = useMemo(() => buildCycle(startDate, endDate), [startDate, endDate]);
+    const legend = Array.isArray(rosterSetup?.legend) ? rosterSetup.legend : [];
 
     const holidayLookup = useMemo(
         () => new Map(
@@ -69,24 +80,23 @@ export default function CalendarGrid({ startDate, endDate, holidays = [], staff,
         return map;
     }, [assignments]);
 
-    // Per-day coverage counts for each shift name
+    // Per-day coverage counts using ward codes when available
     const coverageCounts = useMemo(() => {
-        // Collect unique shift names from assignments
         const shiftNames = new Set();
+        const counts = new Map(); // dateKey → { label: count }
         for (const a of assignments) {
-            if (a.shiftType?.name) shiftNames.add(a.shiftType.name);
-        }
-
-        const counts = new Map(); // dateKey → { shiftName: count }
-        for (const a of assignments) {
+            const label = displayCodeForAssignment(a, legend)
+                || preferredSourceCode(a.shiftType?.name, legend)
+                || a.shiftType?.name
+                || 'Unknown';
+            shiftNames.add(label);
             const dateKey = new Date(a.date).toISOString().split('T')[0];
             if (!counts.has(dateKey)) counts.set(dateKey, {});
             const entry = counts.get(dateKey);
-            const name = a.shiftType?.name || 'Unknown';
-            entry[name] = (entry[name] || 0) + 1;
+            entry[label] = (entry[label] || 0) + 1;
         }
-        return { counts, shiftNames: [...shiftNames].slice(0, 4) }; // cap at 4 shift types to fit
-    }, [assignments]);
+        return { counts, shiftNames: [...shiftNames].slice(0, 6) };
+    }, [assignments, legend]);
 
     // Split staff: regular first, rotation at the bottom
     const regularStaff = useMemo(() => staff.filter((s) => !s.isRotation), [staff]);
@@ -175,8 +185,13 @@ export default function CalendarGrid({ startDate, endDate, holidays = [], staff,
                                 ) : isHoliday && !a ? (
                                     <span className="text-[10px] font-extrabold text-ghs-gold uppercase tracking-wide">H</span>
                                 ) : a ? (
-                                    <span className={`shift-block ${a.shiftType?.color || ''} text-[10px]! px-2! py-0.5!`}>
-                                        {a.shiftType?.name}
+                                    <span
+                                        className={`shift-block ${a.shiftType?.color || ''} text-[10px]! px-2! py-0.5!`}
+                                        title={a.shiftType?.name || ''}
+                                    >
+                                        {displayCodeForAssignment(a, legend)
+                                            || preferredSourceCode(a.shiftType?.name, legend)
+                                            || a.shiftType?.name}
                                     </span>
                                 ) : (
                                     <span className="text-slate-300 text-sm">+</span>
@@ -251,11 +266,12 @@ export default function CalendarGrid({ startDate, endDate, holidays = [], staff,
                                         {coverageCounts.shiftNames.map((name) => (
                                             <div key={name} className="flex items-center gap-1.5">
                                                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
-                                                    name === 'Morning' ? 'bg-[#FFF1E6] text-[#C86A00]' :
-                                                    name === 'Afternoon' ? 'bg-[#E0F2FE] text-[#0369A1]' :
-                                                    name === 'Night' ? 'bg-[#EDE9FE] text-[#6D28D9]' :
+                                                    /^(M|XM|PM|Morning)$/i.test(name) ? 'bg-[#FFF1E6] text-[#C86A00]' :
+                                                    /^(A|XA|PA|Afternoon)$/i.test(name) ? 'bg-[#E0F2FE] text-[#0369A1]' :
+                                                    /^(N|XN|PN|Night)$/i.test(name) ? 'bg-[#EDE9FE] text-[#6D28D9]' :
+                                                    /^(P|OFC|OFFICE|Office)$/i.test(name) ? 'bg-emerald-50 text-emerald-700' :
                                                     'bg-ghs-teal-light text-ghs-teal'
-                                                }`}>{name[0]}</span>
+                                                }`}>{String(name).slice(0, 3)}</span>
                                                 <span className="text-[10px] text-ghs-muted font-bold">{name}</span>
                                             </div>
                                         ))}
@@ -270,9 +286,10 @@ export default function CalendarGrid({ startDate, endDate, holidays = [], staff,
                                                 {coverageCounts.shiftNames.map((name) => (
                                                     <div key={name} className={`text-[11px] font-extrabold rounded px-1 ${
                                                         dayCounts[name]
-                                                            ? name === 'Morning' ? 'text-[#C86A00]' :
-                                                              name === 'Afternoon' ? 'text-[#0369A1]' :
-                                                              name === 'Night' ? 'text-[#6D28D9]' :
+                                                            ? /^(M|XM|PM|Morning)$/i.test(name) ? 'text-[#C86A00]' :
+                                                              /^(A|XA|PA|Afternoon)$/i.test(name) ? 'text-[#0369A1]' :
+                                                              /^(N|XN|PN|Night)$/i.test(name) ? 'text-[#6D28D9]' :
+                                                              /^(P|OFC|OFFICE|Office)$/i.test(name) ? 'text-emerald-700' :
                                                               'text-ghs-teal'
                                                             : 'text-slate-300'
                                                     }`}>

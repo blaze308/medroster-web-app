@@ -1,11 +1,35 @@
 'use client';
 
 import { classifyStaffType } from '../../lib/staff-utils';
+import { preferredSourceCode } from '../../lib/roster-setup';
 
-export default function ShiftPicker({ staff, date, shiftTypes, currentShiftTypeId, onAssign, onClose }) {
+function shiftDisplayLabel(st, legend) {
+    const code = preferredSourceCode(st.name, legend);
+    const friendly = st.name === 'Office' ? 'Clinic / OPD' : st.name;
+    const times = st.startTime && st.endTime ? `${st.startTime} – ${st.endTime}` : '';
+    const hasWardCode = code && code !== st.name && !(st.name === 'Office' && code === 'OFC');
+    if (hasWardCode || st.name === 'Office') {
+        return {
+            primary: code || (st.name === 'Office' ? 'OFC' : friendly),
+            secondary: [friendly, times].filter(Boolean).join(' · '),
+        };
+    }
+    return { primary: code || friendly, secondary: times };
+}
+
+export default function ShiftPicker({
+    staff,
+    date,
+    shiftTypes,
+    currentShiftTypeId,
+    onAssign,
+    onClose,
+    rosterSetup = null,
+}) {
     const dateStr = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
     const staffType = staff.staffType || classifyStaffType(staff.rank);
     const restrictNight = staffType === 'senior' || staffType === 'pno';
+    const legend = Array.isArray(rosterSetup?.legend) ? rosterSetup.legend : [];
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl animate-in fade-in duration-300">
@@ -30,6 +54,7 @@ export default function ShiftPicker({ staff, date, shiftTypes, currentShiftTypeI
                         {shiftTypes.map((st) => {
                             const disabled = restrictNight && st.name === 'Night';
                             const active = String(st._id) === String(currentShiftTypeId);
+                            const label = shiftDisplayLabel(st, legend);
                             return (
                                 <button
                                     key={st._id}
@@ -45,9 +70,9 @@ export default function ShiftPicker({ staff, date, shiftTypes, currentShiftTypeI
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <span className={`shift-block ${st.color}`}>{st.name}</span>
+                                        <span className={`shift-block ${st.color}`}>{label.primary}</span>
                                         <span className="text-xs font-bold text-synclly-muted">
-                                            {st.startTime} – {st.endTime}
+                                            {label.secondary || `${st.startTime} – ${st.endTime}`}
                                         </span>
                                     </div>
                                     {active && (

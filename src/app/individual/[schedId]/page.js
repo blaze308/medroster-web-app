@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch } from '../../../lib/api';
 import { exportRosterPdf } from '../../../lib/pdf-export';
+import { exportRosterCsv, exportRosterExcel } from '../../../lib/spreadsheet-export';
 import { useFirebaseAuth } from '../../../components/FirebaseAuthProvider';
 import SandboxScheduleShell from '../../../components/schedule/SandboxScheduleShell';
 
@@ -67,17 +68,20 @@ export default function IndividualSchedulePage() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExport = async (format = 'pdf') => {
         if (!schedule) return;
         setExporting(true);
+        const payload = {
+            schedule,
+            hospital: { name: 'Individual account' },
+            ward: { name: schedule.wardName || schedule.name || 'Roster' },
+            staff: schedule.staff || [],
+            assignments: schedule.assignments || [],
+        };
         try {
-            await exportRosterPdf({
-                schedule,
-                hospital: { name: 'Individual account' },
-                ward: { name: schedule.wardName || schedule.name || 'Roster' },
-                staff: schedule.staff || [],
-                assignments: schedule.assignments || [],
-            });
+            if (format === 'excel') await exportRosterExcel(payload);
+            else if (format === 'csv') exportRosterCsv(payload);
+            else await exportRosterPdf(payload);
         } finally {
             setExporting(false);
         }
@@ -119,7 +123,7 @@ export default function IndividualSchedulePage() {
                 subtitle="Saved to your account · import, calendar, and auto-generate"
                 backHref="/individual"
                 backLabel="← Schedules"
-                onExportPdf={handleExport}
+                onExport={handleExport}
                 exporting={exporting}
             />
         </>

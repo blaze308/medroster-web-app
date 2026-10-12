@@ -187,33 +187,18 @@ export function validateWorkRestriction(staff, date, shiftType, schedule) {
 
 /**
  * Soft guideline: ≥N senior / in-charge on Morning, Afternoon, Night.
- * dutyOverlaps (from ward legend): which cover buckets this duty attaches to.
- * Office + Morning-only = separate 8–2 post (no take-ups) — not in replaceable cover.
- * All three overlaps = regular cover shift for its meaning.
+ * Office (clinic) is morning-like but separate — no take-ups unless outsideMorning.
+ * SOD counts day-side.
  */
-function resolveDutyOverlaps(assignment) {
-    const raw = assignment?.dutyOverlaps || assignment?.shiftType?.dutyOverlaps;
-    if (Array.isArray(raw) && raw.length) {
-        return raw.filter((s) => ['Morning', 'Afternoon', 'Night'].includes(s));
-    }
-    const name = shiftName(assignment?.shiftType);
-    if (name === 'Office' || name === 'Morning' || name === 'SOD') return ['Morning'];
-    if (name === 'Afternoon') return ['Afternoon'];
-    if (name === 'Night') return ['Night'];
-    return name ? [name] : [];
-}
-
 function isOfficeStyleAssignment(assignment) {
     const name = shiftName(assignment?.shiftType);
-    const overlaps = resolveDutyOverlaps(assignment);
-    return name === 'Office'
-        && overlaps.length === 1
-        && overlaps[0] === 'Morning';
-}
-
-function isRegularOverlaps(overlaps) {
-    const set = new Set(overlaps || []);
-    return ['Morning', 'Afternoon', 'Night'].every((s) => set.has(s));
+    if (name !== 'Office') return false;
+    const overlaps = assignment?.dutyOverlaps || assignment?.shiftType?.dutyOverlaps;
+    const list = Array.isArray(overlaps) ? overlaps : [];
+    if (list.includes('Afternoon') || list.includes('Night')) return false;
+    if (list.length >= 3) return false;
+    const outside = assignment?.outsideMorning || assignment?.shiftType?.outsideMorning;
+    return !outside;
 }
 
 export function validateSupervisoryCoverage({ date, assignments, staffById, settings }) {
@@ -228,20 +213,11 @@ export function validateSupervisoryCoverage({ date, assignments, staffById, sett
     for (const shift of coverageShifts) {
         const onShift = dayAssignments.filter((a) => {
             const name = shiftName(a.shiftType);
-            if (isOfficeStyleAssignment(a)) return false; // 8–2 separate · no take-ups
-            const overlaps = resolveDutyOverlaps(a);
-            if (isRegularOverlaps(overlaps)) {
-                // Regular cover — own meaning pool (+ SOD day-side)
-                if (name === shift) return true;
-                if ((shift === 'Morning' || shift === 'Afternoon') && name === 'SOD') return true;
-                if (name === 'Office' && shift === 'Morning') return true;
-                return false;
-            }
-            // Partial overlaps = hand-off attach points
-            if (overlaps.includes(shift)) return true;
-            if ((shift === 'Morning' || shift === 'Afternoon') && name === 'SOD' && overlaps.includes('Morning')) {
-                return true;
-            }
+            if (isOfficeStyleAssignment(a)) return false; // clinic 8–2 · no take-ups
+            if (name === shift) return true;
+            if ((shift === 'Morning' || shift === 'Afternoon') && name === 'SOD') return true;
+            // Rare: Office marked outsideMorning still only counts with Morning
+            if (name === 'Office' && shift === 'Morning') return true;
             return false;
         });
         if (onShift.length === 0) continue;

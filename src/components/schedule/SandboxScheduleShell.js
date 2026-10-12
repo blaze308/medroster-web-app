@@ -4,11 +4,36 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import CalendarGrid from './CalendarGrid';
 import ShiftPicker from './ShiftPicker';
+import ConfirmModal from '../modals/ConfirmModal';
 import ImportStaffModal from '../modals/ImportStaffModal';
 import {
     sandboxShiftTypes,
     generateSandboxAssignments,
+    countGeneratableSlots,
 } from '../../lib/sandbox-roster';
+import { preferredSourceCode } from '../../lib/roster-setup';
+
+const CLEAR_OPTIONS = [
+    {
+        id: 'setup',
+        label: 'Saved setup',
+        hint: 'Shift codes, meanings, overlaps, and in-charge / assistant picks',
+        defaultChecked: true,
+        locked: true,
+    },
+    {
+        id: 'shifts',
+        label: 'Shifts on the calendar',
+        hint: 'All assignments for this roster period',
+        defaultChecked: false,
+    },
+    {
+        id: 'staff',
+        label: 'Staff list',
+        hint: 'Remove everyone — also clears their shifts',
+        defaultChecked: false,
+    },
+];
 
 function formatRange(start, end) {
     if (!start || !end) return '';
@@ -18,8 +43,9 @@ function formatRange(start, end) {
 }
 
 /**
- * Shared guest / individual roster shell: staff, calendar, generate, import, PDF.
+ * Shared guest / individual roster shell: staff, calendar, generate, import, export.
  * Persistence is owned by the parent via `schedule` + `onChange`.
+ * `onExport(format)` — format is 'pdf' | 'excel' | 'csv'. Legacy `onExportPdf` still works.
  */
 export default function SandboxScheduleShell({
     mode = 'guest',
@@ -31,6 +57,7 @@ export default function SandboxScheduleShell({
     backHref = '/',
     backLabel = '← Home',
     banner = null,
+    onExport,
     onExportPdf,
     exporting = false,
     extraActions = null,
@@ -43,12 +70,43 @@ export default function SandboxScheduleShell({
     const [newRank, setNewRank] = useState('Staff Nurse');
     const [generating, setGenerating] = useState(false);
     const [toast, setToast] = useState('');
+    const [exportOpen, setExportOpen] = useState(false);
+    /** 'clearShifts' | 'resetSetup' | null */
+    const [confirmKind, setConfirmKind] = useState(null);
+
+    const runExport = (format) => {
+        setExportOpen(false);
+        if (onExport) onExport(format);
+        else if (format === 'pdf' && onExportPdf) onExportPdf();
+    };
 
     const staff = schedule?.staff || [];
     const assignments = schedule?.assignments || [];
     const holidays = schedule?.holidays || [];
+    const hasSetup = Boolean(schedule?.rosterSetup);
+    const canReset = hasSetup || assignments.length > 0 || staff.length > 0;
 
     const patch = (partial) => onChange?.({ ...schedule, ...partial });
+
+    const applyClearSelection = (selected) => {
+        const clearSetup = Boolean(selected?.setup ?? selected === true);
+        const clearStaff = Boolean(selected?.staff);
+        const clearShifts = Boolean(selected?.shifts) || clearStaff;
+        const next = { ...schedule };
+        if (clearSetup) next.rosterSetup = null;
+        if (clearShifts) next.assignments = [];
+        if (clearStaff) next.staff = [];
+        onChange?.(next);
+        const parts = [];
+        if (clearSetup) parts.push('setup');
+        if (clearShifts) parts.push('shifts');
+        if (clearStaff) parts.push('staff');
+        setToast(
+            parts.length === 3
+                ? 'Clean slate — setup, shifts, and staff cleared.'
+                : `Cleared ${parts.join(', ')}.`
+        );
+    };
 
     const addStaff = () => {
         if (!newFirst.trim() || !newLast.trim()) return;
@@ -111,6 +169,7 @@ export default function SandboxScheduleShell({
         }
         const st = shiftTypes.find((x) => String(x._id) === String(shiftTypeId));
         if (!st) return;
+        const sourceCode = preferredSourceCode(st.name, schedule?.rosterSetup?.legend) || undefined;
         patch({
             assignments: [
                 ...without,
@@ -118,6 +177,7 @@ export default function SandboxScheduleShell({
                     _id: `a_${person._id}_${dk}`,
                     staffId: person._id,
                     date: `${dk}T00:00:00.000Z`,
+                    sourceCode,
                     shiftType: {
                         name: st.name,
                         color: st.color,
@@ -131,27 +191,52 @@ export default function SandboxScheduleShell({
     };
 
     const handleClearAll = () => {
-        if (!confirm('Clear every assignment in this roster?')) return;
-        patch({ assignments: [] });
+        if (!assignments.length) return;
+        setConfirmKind('clearShifts');
     };
+
+    const handleResetSetup = () => {
+        if (!canReset) return;
+        setConfirmKind('resetSetup');
+    };
+
+    const generatableCount = useMemo(() => countGeneratableSlots({
+        staff,
+        startDate: schedule?.startDate,
+        endDate: schedule?.endDate,
+        shiftTypes,
+        existing: assignments,
+        holidays,
+        rosterSetup: schedule?.rosterSetup || null,
+    }), [staff, schedule?.startDate, schedule?.endDate, schedule?.rosterSetup, assignments, holidays, shiftTypes]);
 
     const handleGenerate = () => {
         if (!staff.length) {
             setToast('Add or import staff first.');
             return;
         }
+        if (generatableCount <= 0) {
+            setToast('No empty cover slots left to fill.');
+            return;
+        }
         setGenerating(true);
         try {
+            const before = assignments.length;
             const next = generateSandboxAssignments({
                 staff,
                 startDate: schedule.startDate,
                 endDate: schedule.endDate,
                 shiftTypes,
                 existing: assignments,
-                replace: true,
+                holidays,
+                rosterSetup: schedule?.rosterSetup || null,
+                replace: false,
             });
+            const added = Math.max(0, next.length - before);
             patch({ assignments: next });
-            setToast(`Generated ${next.length} shift${next.length === 1 ? '' : 's'}.`);
+            setToast(added
+                ? `Filled ${added} cover shift${added === 1 ? '' : 's'} (Morning / Afternoon / Night).`
+                : 'No new cover shifts to fill.');
         } finally {
             setGenerating(false);
         }
@@ -192,11 +277,14 @@ export default function SandboxScheduleShell({
                         </button>
                         <button
                             type="button"
-                            disabled={generating || !staff.length}
+                            disabled={generating || !staff.length || generatableCount <= 0}
                             onClick={handleGenerate}
+                            title={generatableCount
+                                ? `${generatableCount} empty cover slot${generatableCount === 1 ? '' : 's'} can be filled`
+                                : 'No empty Morning / Afternoon / Night slots to fill'}
                             className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold disabled:opacity-50 bg-white"
                         >
-                            {generating ? 'Generating…' : 'Auto-generate'}
+                            {generating ? 'Generating…' : `Auto-generate (${generatableCount})`}
                         </button>
                         <button
                             type="button"
@@ -206,14 +294,59 @@ export default function SandboxScheduleShell({
                         >
                             Clear shifts
                         </button>
-                        <button
-                            type="button"
-                            disabled={exporting}
-                            onClick={onExportPdf}
-                            className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50"
-                        >
-                            {exporting ? 'Exporting…' : 'Export PDF'}
-                        </button>
+                        {(mode === 'guest' || mode === 'individual') && canReset ? (
+                            <button
+                                type="button"
+                                onClick={handleResetSetup}
+                                className="h-11 px-4 rounded-xl border border-amber-200 text-amber-900 text-sm font-bold bg-amber-50"
+                                title="Clear saved setup, and optionally shifts or staff"
+                            >
+                                Reset / clear
+                            </button>
+                        ) : null}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                disabled={exporting}
+                                onClick={() => setExportOpen((v) => !v)}
+                                className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50"
+                            >
+                                {exporting ? 'Exporting…' : 'Export ▾'}
+                            </button>
+                            {exportOpen && !exporting ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="fixed inset-0 z-40 cursor-default"
+                                        aria-label="Close export menu"
+                                        onClick={() => setExportOpen(false)}
+                                    />
+                                    <div className="absolute right-0 mt-1 z-50 min-w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                        <button
+                                            type="button"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-ghs-deep hover:bg-slate-50"
+                                            onClick={() => runExport('pdf')}
+                                        >
+                                            PDF
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-ghs-deep hover:bg-slate-50"
+                                            onClick={() => runExport('excel')}
+                                        >
+                                            Excel (.xlsx)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="w-full px-4 py-2.5 text-left text-sm font-bold text-ghs-deep hover:bg-slate-50"
+                                            onClick={() => runExport('csv')}
+                                        >
+                                            CSV
+                                        </button>
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
                         {extraActions}
                     </div>
                 </div>
@@ -272,6 +405,7 @@ export default function SandboxScheduleShell({
                             staff={staff}
                             assignments={assignments}
                             onCellClick={handleCellClick}
+                            rosterSetup={schedule?.rosterSetup || null}
                         />
                     </div>
                 )}
@@ -314,6 +448,37 @@ export default function SandboxScheduleShell({
                     currentShiftTypeId={picker.currentShiftTypeId}
                     onAssign={handleAssign}
                     onClose={() => setPicker(null)}
+                    rosterSetup={schedule?.rosterSetup || null}
+                />
+            )}
+
+            {confirmKind === 'clearShifts' && (
+                <ConfirmModal
+                    title="Clear all shifts?"
+                    message="Every assignment on this roster calendar will be removed. Staff and saved setup stay."
+                    confirmLabel="Clear shifts"
+                    danger
+                    onClose={() => setConfirmKind(null)}
+                    onConfirm={() => {
+                        patch({ assignments: [] });
+                        setConfirmKind(null);
+                        setToast('All shifts cleared.');
+                    }}
+                />
+            )}
+
+            {confirmKind === 'resetSetup' && (
+                <ConfirmModal
+                    title="Reset / clear roster"
+                    message="Pick what to wipe. Saved setup always clears so the next import asks for codes again. Use Clean slate for a full restart."
+                    confirmLabel="Clear selected"
+                    danger
+                    options={CLEAR_OPTIONS}
+                    onClose={() => setConfirmKind(null)}
+                    onConfirm={(selected) => {
+                        applyClearSelection(selected);
+                        setConfirmKind(null);
+                    }}
                 />
             )}
 
@@ -321,6 +486,13 @@ export default function SandboxScheduleShell({
                 <ImportStaffModal
                     mode={mode}
                     savedRosterSetup={schedule?.rosterSetup || null}
+                    onClearRosterSetup={(selected) => {
+                        if (selected && typeof selected === 'object') {
+                            applyClearSelection({ setup: true, ...selected });
+                        } else {
+                            applyClearSelection({ setup: true });
+                        }
+                    }}
                     onClose={() => setShowImport(false)}
                     onImported={(data) => {
                         const incoming = data.staff || [];

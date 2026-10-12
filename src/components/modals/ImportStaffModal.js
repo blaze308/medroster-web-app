@@ -26,15 +26,42 @@ import {
     applyRosterSetup,
     buildRosterSetupPayload,
     buildSetupProposal,
+    codePlainHint,
     defaultDutyOverlaps,
-    DUTY_OVERLAP_OPTIONS,
-    isOfficeStyleOverlaps,
+    defaultOfficeDays,
+    displayMeaningLabel,
     isRegularDutyOverlaps,
+    kindFromMeaning,
+    LEGEND_KIND_OPTIONS,
+    OFFICE_DAY_OPTIONS,
     LEGEND_MEANING_OPTIONS,
     LEGEND_MEANINGS,
-    ON_DUTY_MEANINGS,
+    normalizeDutyOverlaps,
 } from '../../lib/roster-setup';
 import { mapPreviewToAssignments, sandboxShiftTypes } from '../../lib/sandbox-roster';
+import ConfirmModal from './ConfirmModal';
+
+const FRESH_SETUP_CLEAR_OPTIONS = [
+    {
+        id: 'setup',
+        label: 'Saved setup',
+        hint: 'Forget codes, clinic days, and roles — re-map from this file',
+        defaultChecked: true,
+        locked: true,
+    },
+    {
+        id: 'shifts',
+        label: 'Shifts already on the roster',
+        hint: 'Clear calendar assignments in the roster behind this import',
+        defaultChecked: false,
+    },
+    {
+        id: 'staff',
+        label: 'Staff already on the roster',
+        hint: 'Remove current staff list too (clean slate)',
+        defaultChecked: false,
+    },
+];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -146,6 +173,7 @@ export default function ImportStaffModal({
     defaultWardId,
     lockWard = false,
     savedRosterSetup = null,
+    onClearRosterSetup = null,
     onClose,
     onImported,
 }) {
@@ -159,6 +187,7 @@ export default function ImportStaffModal({
             defaultWardId={defaultWardId}
             lockWard={lockWard}
             savedRosterSetup={savedRosterSetup}
+            onClearRosterSetup={onClearRosterSetup}
             onClose={onClose}
             onImported={onImported}
         />
@@ -172,6 +201,7 @@ function UnifiedImportModal({
     defaultWardId: defaultWardIdProp,
     lockWard = false,
     savedRosterSetup = null,
+    onClearRosterSetup = null,
 }) {
     const isHospital = mode === 'hospital';
     const [step, setStep] = useState('upload');
@@ -188,6 +218,7 @@ function UnifiedImportModal({
     const [setupDraft, setSetupDraft] = useState(null);
     const [confirmedSetup, setConfirmedSetup] = useState(null);
     const [toast, setToast] = useState(null); // { kind, message }
+    const [showFreshClear, setShowFreshClear] = useState(false);
     const [rules, setRules] = useState({
         leaveStayOff: true,
         offAndHolidayStayOff: true,
@@ -258,6 +289,52 @@ function UnifiedImportModal({
         setFile(next);
         setPath(isCsvFile(next) ? 'csv' : 'roster');
         setError('');
+    };
+
+    const draftFromProposal = (nextPreview, pack) => {
+        const proposal = buildSetupProposal(nextPreview, pack);
+        return {
+            legend: (proposal.legendDraft || []).map((e) => ({
+                label: e.label,
+                meaning: e.meaning || '',
+                unit: e.unit || '',
+                codeHint: e.codeHint || codePlainHint(e.label),
+                legendNote: e.legendNote || '',
+                dutyKind: e.dutyKind || kindFromMeaning(e.meaning || ''),
+                dutyOverlaps: e.dutyOverlaps?.length
+                    ? e.dutyOverlaps
+                    : defaultDutyOverlaps(e.meaning || ''),
+                officeDays: e.meaning === 'Office'
+                    ? (e.officeDays?.length ? e.officeDays : defaultOfficeDays('Office'))
+                    : [],
+                outsideMorning: e.meaning === 'Office' ? Boolean(e.outsideMorning) : false,
+                needsConfirm: Boolean(e.needsConfirm),
+                confidence: e.confidence,
+                userChecked: !e.needsConfirm && Boolean(e.meaning),
+            })),
+            inchargeStaffKey: pack?.inchargeStaffKey
+                || proposal.roleGuesses.find((r) => r.guessedRole === 'incharge')?.key
+                || '',
+            assistantStaffKey: pack?.assistantStaffKey
+                || proposal.roleGuesses.find((r) => r.guessedRole === 'assistant')?.key
+                || '',
+            leaveByKey: Object.fromEntries(
+                (proposal.roleGuesses || [])
+                    .filter((r) => r.leaveLikely || r.leaveType)
+                    .map((r) => [r.key, { onLeave: true, leaveType: r.leaveType || 'annual' }])
+            ),
+            roleGuesses: proposal.roleGuesses,
+            blanks: proposal.blanks,
+            needsFullSetup: proposal.needsFullSetup,
+            rolesEssential: !pack?.confirmedAt,
+            inchargeSkipped: false,
+            assistantSkipped: false,
+            inchargeChecked: Boolean(pack?.inchargeStaffKey)
+                || Boolean(proposal.roleGuesses.find((r) => r.guessedRole === 'incharge')),
+            assistantChecked: Boolean(pack?.assistantStaffKey)
+                || Boolean(proposal.roleGuesses.find((r) => r.guessedRole === 'assistant')),
+            proposal,
+        };
     };
 
     const runParse = async () => {
@@ -346,42 +423,7 @@ function UnifiedImportModal({
             setConfirmedSetup(null);
 
             if (!useCsv && nextPreview.source === 'roster') {
-                const proposal = buildSetupProposal(nextPreview, wardPack);
-                const draft = {
-                    legend: (proposal.legendDraft || []).map((e) => ({
-                        label: e.label,
-                        meaning: e.meaning || '',
-                        unit: e.unit || '',
-                        dutyOverlaps: e.dutyOverlaps?.length
-                            ? e.dutyOverlaps
-                            : defaultDutyOverlaps(e.meaning || ''),
-                        needsConfirm: Boolean(e.needsConfirm),
-                        confidence: e.confidence,
-                        userChecked: !e.needsConfirm && Boolean(e.meaning),
-                    })),
-                    inchargeStaffKey: wardPack?.inchargeStaffKey
-                        || proposal.roleGuesses.find((r) => r.guessedRole === 'incharge')?.key
-                        || '',
-                    assistantStaffKey: wardPack?.assistantStaffKey
-                        || proposal.roleGuesses.find((r) => r.guessedRole === 'assistant')?.key
-                        || '',
-                    leaveByKey: Object.fromEntries(
-                        (proposal.roleGuesses || [])
-                            .filter((r) => r.leaveLikely || r.leaveType)
-                            .map((r) => [r.key, { onLeave: true, leaveType: r.leaveType || 'annual' }])
-                    ),
-                    roleGuesses: proposal.roleGuesses,
-                    blanks: proposal.blanks,
-                    needsFullSetup: proposal.needsFullSetup,
-                    // First-time ward setup: roles are essential (soft) — highlight until set or skipped
-                    rolesEssential: !wardPack?.confirmedAt,
-                    inchargeSkipped: false,
-                    assistantSkipped: false,
-                    inchargeChecked: Boolean(wardPack?.inchargeStaffKey)
-                        || Boolean(proposal.roleGuesses.find((r) => r.guessedRole === 'incharge')),
-                    assistantChecked: Boolean(wardPack?.assistantStaffKey)
-                        || Boolean(proposal.roleGuesses.find((r) => r.guessedRole === 'assistant')),
-                };
+                const { proposal, ...draft } = draftFromProposal(nextPreview, wardPack);
                 setSetupDraft(draft);
                 if (wardPack?.confirmedAt && !proposal.needsFullSetup) {
                     const payload = buildRosterSetupPayload({
@@ -434,6 +476,48 @@ function UnifiedImportModal({
         if (!setupDraft.assistantStaffKey && !setupDraft.assistantSkipped) missing.push('assistant');
         return missing;
     }, [setupDraft]);
+
+    const applyFreshSetup = (selected = { setup: true }) => {
+        if (!rawPreview) return;
+        onClearRosterSetup?.({
+            setup: true,
+            shifts: Boolean(selected.shifts),
+            staff: Boolean(selected.staff),
+        });
+        const { proposal: _freshProposal, ...draft } = draftFromProposal(rawPreview, null);
+        // Force every code + role to be re-checked (true clean setup)
+        draft.legend = (draft.legend || []).map((e) => ({
+            ...e,
+            needsConfirm: true,
+            userChecked: false,
+        }));
+        draft.rolesEssential = true;
+        draft.inchargeStaffKey = '';
+        draft.assistantStaffKey = '';
+        draft.inchargeSkipped = false;
+        draft.assistantSkipped = false;
+        draft.inchargeChecked = false;
+        draft.assistantChecked = false;
+        setConfirmedSetup(null);
+        setSetupDraft(draft);
+        setPreview(null);
+        setStep('setup');
+        setShowFreshClear(false);
+        const extras = [];
+        if (selected.shifts) extras.push('shifts');
+        if (selected.staff) extras.push('staff');
+        setToast({
+            kind: 'info',
+            message: extras.length
+                ? `Cleared setup + ${extras.join(' + ')} — confirm codes and roles below.`
+                : 'Saved setup cleared — confirm every code and role below.',
+        });
+    };
+
+    const startFreshSetup = () => {
+        if (!rawPreview) return;
+        setShowFreshClear(true);
+    };
 
     const applySetupAndReview = () => {
         if (!rawPreview || !setupDraft) {
@@ -627,9 +711,14 @@ function UnifiedImportModal({
                         draft={setupDraft}
                         setDraft={setSetupDraft}
                         wardName={wardName}
-                        hasSavedPack={Boolean(wardPack?.confirmedAt)}
+                        hasSavedPack={Boolean(wardPack?.confirmedAt) && !setupDraft.rolesEssential}
                         pendingLabels={pendingSetupLabels}
                         pendingRoles={pendingRoles}
+                        onStartFresh={
+                            (mode === 'guest' || mode === 'individual') && (wardPack?.confirmedAt || confirmedSetup)
+                                ? startFreshSetup
+                                : null
+                        }
                     />
                 )}
 
@@ -785,6 +874,18 @@ function UnifiedImportModal({
                     )}
                 </div>
             </div>
+
+            {showFreshClear && (
+                <ConfirmModal
+                    title="Reset setup from this file?"
+                    message="Saved codes and roles will be forgotten so you remap everything below. Optionally wipe the roster behind this import too."
+                    confirmLabel="Clear selected"
+                    danger
+                    options={FRESH_SETUP_CLEAR_OPTIONS}
+                    onClose={() => setShowFreshClear(false)}
+                    onConfirm={(selected) => applyFreshSetup(selected)}
+                />
+            )}
         </div>
     );
 }
@@ -830,36 +931,31 @@ function LeaveLegendPanel() {
     );
 }
 
-function DutyOverlapPills({ value = [], meaning = '', onChange }) {
-    const selected = Array.isArray(value) ? value : [];
-    const toggle = (shift) => {
-        const has = selected.includes(shift);
-        // Keep at least one overlap when on duty
-        if (has && selected.length === 1) return;
-        const next = has
-            ? selected.filter((s) => s !== shift)
-            : [...selected, shift];
-        // Stable Morning → Afternoon → Night order
-        const order = DUTY_OVERLAP_OPTIONS.map((o) => o.value);
-        onChange(order.filter((s) => next.includes(s)));
-    };
-    const regular = isRegularDutyOverlaps(selected);
-    const officeStyle = isOfficeStyleOverlaps(meaning, selected);
-
+/**
+ * Kind-first chooser for unclear codes: Clinic/OPD vs ward shift vs off/leave vs skip.
+ * Does not auto-confirm — parent still requires Confirm.
+ */
+function LegendKindChooser({
+    dutyKind = '',
+    meaning = '',
+    onKindChange,
+    onMeaningChange,
+}) {
+    const kind = dutyKind || kindFromMeaning(meaning);
     return (
-        <div className="mt-1.5 space-y-1">
+        <div className="mb-2 space-y-1.5">
             <p className="text-[9px] font-bold uppercase tracking-widest text-ghs-muted">
-                Overlaps
+                What is this code?
             </p>
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Which shifts this duty overlaps">
-                {DUTY_OVERLAP_OPTIONS.map((o) => {
-                    const active = selected.includes(o.value);
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Duty kind">
+                {LEGEND_KIND_OPTIONS.map((o) => {
+                    const active = kind === o.value;
                     return (
                         <button
                             key={o.value}
                             type="button"
                             title={o.hint}
-                            onClick={() => toggle(o.value)}
+                            onClick={() => onKindChange(o.value)}
                             className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
                                 active
                                     ? 'bg-ghs-teal text-white'
@@ -871,20 +967,188 @@ function DutyOverlapPills({ value = [], meaning = '', onChange }) {
                     );
                 })}
             </div>
-            {officeStyle && (
+            {kind === 'ward' && (
+                <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-ghs-muted">
+                        Which ward shift?
+                    </p>
+                    <div className="flex flex-wrap gap-1" role="group" aria-label="Cover shift">
+                        {['Morning', 'Afternoon', 'Night'].map((shift) => {
+                            const active = meaning === shift;
+                            return (
+                                <button
+                                    key={shift}
+                                    type="button"
+                                    onClick={() => onMeaningChange(shift)}
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                        active
+                                            ? 'bg-ghs-deep text-white'
+                                            : 'bg-white border border-slate-200 text-ghs-muted hover:border-ghs-teal hover:text-ghs-deep'
+                                    }`}
+                                >
+                                    {shift}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+            {kind === 'off' && (
+                <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-ghs-muted">
+                        Not on duty as
+                    </p>
+                    <div className="flex flex-wrap gap-1" role="group" aria-label="Off type">
+                        {['Off', 'Holiday', 'Leave'].map((m) => {
+                            const active = meaning === m;
+                            return (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => onMeaningChange(m)}
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                        active
+                                            ? 'bg-ghs-deep text-white'
+                                            : 'bg-white border border-slate-200 text-ghs-muted hover:border-ghs-teal hover:text-ghs-deep'
+                                    }`}
+                                >
+                                    {m}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+            {kind === 'clinic' && (
                 <p className="text-[10px] font-medium text-ghs-muted leading-snug">
-                    Office hours (8–2) · overlaps Morning but separate · no typical take-ups
+                    Clinic / OPD — set days below, then Confirm.
                 </p>
             )}
-            {!officeStyle && selected.includes('Afternoon') && !regular && (
+            {kind === 'skip' && (
                 <p className="text-[10px] font-medium text-ghs-muted leading-snug">
-                    Afternoon tagged — someone can take up after the morning session
+                    This code will be ignored — press Confirm or Skip to finish.
                 </p>
             )}
-            {regular && (
-                <p className="text-[10px] font-bold text-amber-800 leading-snug">
-                    All shifts tagged — treated as a regular cover shift
-                </p>
+        </div>
+    );
+}
+
+/** Clinic / OPD = morning-like clinic days; rare option adds Afternoon / Night cover. */
+function OfficeClinicPanel({
+    officeDays = [],
+    dutyOverlaps = ['Morning'],
+    onChange,
+}) {
+    const overlaps = normalizeDutyOverlaps(dutyOverlaps, 'Office');
+    const hasExtra = overlaps.includes('Afternoon') || overlaps.includes('Night');
+    const [showRare, setShowRare] = useState(hasExtra);
+    const selected = Array.isArray(officeDays) ? officeDays : [];
+    const regular = isRegularDutyOverlaps(overlaps);
+
+    const emit = (nextDays, nextOverlaps) => {
+        const cleaned = normalizeDutyOverlaps(nextOverlaps, 'Office');
+        onChange({
+            officeDays: OFFICE_DAY_OPTIONS.map((o) => o.value).filter((d) => nextDays.includes(d)),
+            dutyOverlaps: cleaned,
+            outsideMorning: cleaned.includes('Afternoon') || cleaned.includes('Night'),
+        });
+    };
+
+    const toggleDay = (day) => {
+        const has = selected.includes(day);
+        if (has && selected.length === 1) return;
+        const next = has ? selected.filter((d) => d !== day) : [...selected, day];
+        emit(
+            OFFICE_DAY_OPTIONS.map((o) => o.value).filter((d) => next.includes(d)),
+            overlaps
+        );
+    };
+
+    const toggleExtraShift = (shift) => {
+        // Morning is always included for Clinic / OPD
+        if (shift === 'Morning') return;
+        const has = overlaps.includes(shift);
+        const next = has
+            ? overlaps.filter((s) => s !== shift)
+            : [...overlaps, shift];
+        emit(selected.length ? selected : defaultOfficeDays('Office'), next);
+    };
+
+    const rareOpen = showRare || hasExtra;
+
+    return (
+        <div className="mt-1.5 space-y-1.5">
+            <p className="text-[10px] font-medium text-ghs-deep leading-snug">
+                Morning-like hours (8–2) · separate from ward Morning · no typical take-ups
+            </p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-ghs-muted">
+                Clinic / OPD days
+            </p>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Operating weekdays">
+                {OFFICE_DAY_OPTIONS.map((o) => {
+                    const active = selected.includes(o.value);
+                    return (
+                        <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => toggleDay(o.value)}
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                active
+                                    ? 'bg-ghs-teal text-white'
+                                    : 'bg-slate-100 text-ghs-muted hover:bg-slate-200 hover:text-ghs-deep'
+                            }`}
+                        >
+                            {o.label}
+                        </button>
+                    );
+                })}
+            </div>
+            <p className="text-[10px] font-medium text-ghs-muted leading-snug">
+                Like antenatal or polyclinic sessions — often weekdays only.
+            </p>
+            <button
+                type="button"
+                onClick={() => setShowRare((v) => !v)}
+                className="text-[10px] font-medium text-ghs-muted hover:text-ghs-teal"
+            >
+                {rareOpen ? 'Hide rare option' : 'Rare: also includes Afternoon or Night…'}
+            </button>
+            {rareOpen && (
+                <div className="rounded-xl border border-slate-100 bg-white/80 p-2.5 space-y-1.5">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-ghs-muted">
+                        Also includes
+                    </p>
+                    <div className="flex flex-wrap gap-1" role="group" aria-label="Extra cover shifts">
+                        {['Morning', 'Afternoon', 'Night'].map((shift) => {
+                            const locked = shift === 'Morning';
+                            const active = overlaps.includes(shift);
+                            return (
+                                <button
+                                    key={shift}
+                                    type="button"
+                                    disabled={locked}
+                                    title={locked ? 'Clinic / OPD always includes Morning' : `Toggle ${shift}`}
+                                    onClick={() => toggleExtraShift(shift)}
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                        active
+                                            ? 'bg-ghs-teal text-white'
+                                            : 'bg-slate-100 text-ghs-muted hover:bg-slate-200 hover:text-ghs-deep'
+                                    } ${locked ? 'opacity-90 cursor-default' : ''}`}
+                                >
+                                    {shift}{locked ? ' (always)' : ''}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="text-[10px] font-medium text-ghs-muted leading-snug">
+                        Uncommon — only add Afternoon or Night if this role really covers those sessions.
+                    </p>
+                    {regular && (
+                        <p className="text-[10px] font-bold text-amber-800 leading-snug">
+                            All three shifts tagged — treated as a regular cover shift (not Clinic / OPD-only).
+                        </p>
+                    )}
+                </div>
             )}
         </div>
     );
@@ -959,11 +1223,15 @@ function MeaningPicker({ value, onChange, pending = false, detectedUnit = '' }) 
                     <span className={`block text-xs font-bold truncate ${pending ? 'text-amber-900' : 'text-ghs-deep'}`}>
                         {currentLabel}
                     </span>
-                    {detectedUnit && (
+                    {detectedUnit ? (
                         <span className="block text-[10px] font-medium text-ghs-muted truncate mt-0.5">
-                            From file: {detectedUnit}
+                            Name: {detectedUnit}
                         </span>
-                    )}
+                    ) : pending ? (
+                        <span className="block text-[10px] font-medium text-amber-800/80 truncate mt-0.5">
+                            Name unknown — edit Name / unit →
+                        </span>
+                    ) : null}
                 </button>
                 <button
                     type="button"
@@ -1049,13 +1317,18 @@ function MeaningPicker({ value, onChange, pending = false, detectedUnit = '' }) 
     );
 }
 
-function WardSetupStep({ draft, setDraft, wardName, hasSavedPack, pendingLabels = [], pendingRoles = [] }) {
+function WardSetupStep({
+    draft,
+    setDraft,
+    wardName,
+    hasSavedPack,
+    pendingLabels = [],
+    pendingRoles = [],
+    onStartFresh = null,
+}) {
     const leaveCandidates = (draft.roleGuesses || []).filter((r) => r.leaveLikely || draft.leaveByKey?.[r.key]);
-    const legendRows = [...(draft.legend || [])].sort((a, b) => {
-        const ap = a.needsConfirm && !a.userChecked ? 0 : 1;
-        const bp = b.needsConfirm && !b.userChecked ? 0 : 1;
-        return ap - bp;
-    });
+    // Stable list order — edits/confirm must not jump rows to the bottom
+    const legendRows = draft.legend || [];
     const pendingCount = pendingLabels.length;
     const rolesEssential = Boolean(draft.rolesEssential);
     const inchargePending = rolesEssential && !draft.inchargeStaffKey && !draft.inchargeSkipped;
@@ -1085,11 +1358,20 @@ function WardSetupStep({ draft, setDraft, wardName, hasSavedPack, pendingLabels 
                     {pendingRoles.length
                         ? `Essential for this ward: set ${pendingRoles.join(' and ')} below. You can skip if you truly don’t know yet.`
                         : pendingCount
-                            ? `${pendingCount} code${pendingCount === 1 ? '' : 's'} still need a meaning — confirm or skip each highlighted row.`
+                            ? `${pendingCount} code${pendingCount === 1 ? '' : 's'} still need a check — edit freely, then press Confirm (or Skip). Rows stay in place.`
                             : hasSavedPack
                                 ? 'We reused this ward’s saved legend and roles. Everything below looks checked.'
                                 : 'One-time for this ward — we save this so the next roster import is faster.'}
                 </p>
+                {onStartFresh ? (
+                    <button
+                        type="button"
+                        onClick={onStartFresh}
+                        className="mt-2 text-[11px] font-bold text-amber-800 hover:text-amber-950 underline underline-offset-2"
+                    >
+                        Reset / clear — start fresh from this file
+                    </button>
+                ) : null}
             </div>
 
             {rolesEssential && (
@@ -1207,9 +1489,12 @@ function WardSetupStep({ draft, setDraft, wardName, hasSavedPack, pendingLabels 
                 <div>
                     <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">Legend</p>
                     <p className="text-[11px] font-medium text-ghs-muted mb-2 ml-1 leading-snug">
-                        Office defaults to <span className="font-bold">Morning</span> only (daily 8–2, overlaps Morning but separate, no take-ups).
-                        {' '}Add <span className="font-bold">Afternoon</span> / <span className="font-bold">Night</span> if someone takes up after.
-                        {' '}Tag all three and it becomes a regular cover shift. Polyclinic <span className="font-bold">P</span> → Office.
+                        <span className="font-bold">P</span> = Polyclinic · <span className="font-bold">Clinic / OPD</span> (8–2).
+                        {' '}<span className="font-bold">XM</span> = General X-ray · Morning,
+                        {' '}<span className="font-bold">XA</span> = General X-ray · Afternoon,
+                        {' '}<span className="font-bold">XN</span> = General X-ray · Night.
+                        {' '}Plain <span className="font-bold">M / A / N</span> are ward cover.
+                        {' '}Unclear codes: pick Clinic / OPD, ward shift, or off/leave, then Confirm.
                     </p>
                     <div className="overflow-auto max-h-[32vh] border border-slate-100 rounded-2xl">
                         <table className="min-w-full text-xs">
@@ -1217,18 +1502,88 @@ function WardSetupStep({ draft, setDraft, wardName, hasSavedPack, pendingLabels 
                                 <tr className="text-left text-[10px] uppercase tracking-wider text-ghs-muted">
                                     <th className="p-2">Status</th>
                                     <th className="p-2">Code</th>
-                                    <th className="p-2">Meaning · overlaps</th>
-                                    <th className="p-2">Unit (optional)</th>
+                                    <th className="p-2">Meaning</th>
+                                    <th className="p-2">Name / unit</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {legendRows.map((e) => {
                                     const pending = e.needsConfirm && !e.userChecked;
                                     const ok = e.userChecked || (!e.needsConfirm && e.meaning);
-                                    const onDuty = ON_DUTY_MEANINGS.includes(e.meaning);
-                                    const dutyOverlaps = e.dutyOverlaps?.length
-                                        ? e.dutyOverlaps
-                                        : defaultDutyOverlaps(e.meaning || '');
+                                    const isClinic = e.meaning === 'Office' || e.dutyKind === 'clinic';
+                                    const dutyKind = e.dutyKind || kindFromMeaning(e.meaning || '');
+                                    const canConfirm = Boolean(e.meaning) || dutyKind === 'skip';
+                                    const confirmLabel = dutyKind === 'skip'
+                                        ? 'Confirm skip'
+                                        : `Confirm “${displayMeaningLabel(e.meaning) || e.meaning}”`;
+
+                                    const applyMeaning = (meaning, kindOverride) => {
+                                        const kind = kindOverride || kindFromMeaning(meaning) || dutyKind;
+                                        setLegend(e.label, {
+                                            meaning,
+                                            dutyKind: kind,
+                                            dutyOverlaps: defaultDutyOverlaps(meaning),
+                                            officeDays: meaning === 'Office'
+                                                ? (e.officeDays?.length
+                                                    ? e.officeDays
+                                                    : defaultOfficeDays('Office'))
+                                                : [],
+                                            outsideMorning: meaning === 'Office'
+                                                ? Boolean(e.outsideMorning)
+                                                : false,
+                                            needsConfirm: true,
+                                            userChecked: false,
+                                        });
+                                    };
+
+                                    const applyKind = (kind) => {
+                                        if (kind === 'clinic') {
+                                            applyMeaning('Office', 'clinic');
+                                            return;
+                                        }
+                                        if (kind === 'skip') {
+                                            setLegend(e.label, {
+                                                dutyKind: 'skip',
+                                                meaning: '',
+                                                dutyOverlaps: [],
+                                                officeDays: [],
+                                                outsideMorning: false,
+                                                needsConfirm: true,
+                                                userChecked: false,
+                                            });
+                                            return;
+                                        }
+                                        if (kind === 'ward') {
+                                            setLegend(e.label, {
+                                                dutyKind: 'ward',
+                                                meaning: ['Morning', 'Afternoon', 'Night'].includes(e.meaning)
+                                                    ? e.meaning
+                                                    : '',
+                                                officeDays: [],
+                                                outsideMorning: false,
+                                                dutyOverlaps: ['Morning', 'Afternoon', 'Night'].includes(e.meaning)
+                                                    ? defaultDutyOverlaps(e.meaning)
+                                                    : [],
+                                                needsConfirm: true,
+                                                userChecked: false,
+                                            });
+                                            return;
+                                        }
+                                        if (kind === 'off') {
+                                            setLegend(e.label, {
+                                                dutyKind: 'off',
+                                                meaning: ['Off', 'Holiday', 'Leave'].includes(e.meaning)
+                                                    ? e.meaning
+                                                    : '',
+                                                officeDays: [],
+                                                outsideMorning: false,
+                                                dutyOverlaps: [],
+                                                needsConfirm: true,
+                                                userChecked: false,
+                                            });
+                                        }
+                                    };
+
                                     return (
                                         <tr
                                             key={e.label}
@@ -1251,68 +1606,122 @@ function WardSetupStep({ draft, setDraft, wardName, hasSavedPack, pendingLabels 
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-2 font-extrabold text-ghs-deep">{e.label}</td>
-                                            <td className="p-2 min-w-[240px]">
-                                                <MeaningPicker
-                                                    value={e.meaning || ''}
-                                                    pending={pending}
-                                                    detectedUnit={e.unit || ''}
-                                                    onChange={(meaning) => setLegend(e.label, {
-                                                        meaning,
-                                                        dutyOverlaps: ON_DUTY_MEANINGS.includes(meaning)
-                                                            ? defaultDutyOverlaps(meaning)
-                                                            : [],
-                                                        needsConfirm: false,
-                                                        userChecked: true,
-                                                    })}
-                                                />
-                                                {onDuty && (
-                                                    <DutyOverlapPills
-                                                        value={dutyOverlaps}
+                                            <td className="p-2">
+                                                <span className="block font-extrabold text-ghs-deep">{e.label}</span>
+                                                {(e.codeHint || codePlainHint(e.label)) ? (
+                                                    <span className="block text-[10px] font-medium text-ghs-muted mt-0.5 leading-snug max-w-[9rem]">
+                                                        {e.codeHint || codePlainHint(e.label)}
+                                                    </span>
+                                                ) : null}
+                                            </td>
+                                            <td className="p-2 min-w-[260px]">
+                                                {pending && (
+                                                    <LegendKindChooser
+                                                        dutyKind={dutyKind}
                                                         meaning={e.meaning || ''}
-                                                        onChange={(overlaps) => setLegend(e.label, {
-                                                            dutyOverlaps: overlaps,
-                                                            userChecked: true,
-                                                            needsConfirm: false,
+                                                        onKindChange={applyKind}
+                                                        onMeaningChange={(m) => applyMeaning(m)}
+                                                    />
+                                                )}
+                                                {dutyKind !== 'skip' && (
+                                                    <MeaningPicker
+                                                        value={e.meaning || ''}
+                                                        pending={pending}
+                                                        detectedUnit={e.unit || ''}
+                                                        onChange={(meaning) => applyMeaning(meaning)}
+                                                    />
+                                                )}
+                                                {isClinic && dutyKind !== 'skip' && (
+                                                    <OfficeClinicPanel
+                                                        officeDays={e.officeDays?.length
+                                                            ? e.officeDays
+                                                            : defaultOfficeDays('Office')}
+                                                        dutyOverlaps={e.dutyOverlaps?.length
+                                                            ? e.dutyOverlaps
+                                                            : defaultDutyOverlaps('Office')}
+                                                        onChange={(patch) => setLegend(e.label, {
+                                                            ...patch,
+                                                            dutyKind: 'clinic',
+                                                            meaning: 'Office',
+                                                            needsConfirm: true,
+                                                            userChecked: false,
                                                         })}
                                                     />
                                                 )}
-                                                {pending && (
-                                                    <div className="mt-1 flex flex-wrap gap-2">
-                                                        {e.meaning ? (
+                                                {(pending || !e.userChecked) && (
+                                                    <div className="mt-1.5 space-y-1.5">
+                                                        <input
+                                                            className="w-full h-8 rounded-lg border border-slate-100 bg-white px-2 text-[11px] font-medium"
+                                                            value={e.legendNote || ''}
+                                                            placeholder="Your note (optional) — e.g. only Mon & Wed clinic"
+                                                            onChange={(ev) => setLegend(e.label, {
+                                                                legendNote: ev.target.value,
+                                                            })}
+                                                        />
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {canConfirm ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-[10px] font-bold text-ghs-teal hover:underline"
+                                                                    onClick={() => setLegend(e.label, {
+                                                                        needsConfirm: false,
+                                                                        userChecked: true,
+                                                                        dutyKind: dutyKind === 'skip'
+                                                                            ? 'skip'
+                                                                            : (kindFromMeaning(e.meaning) || dutyKind),
+                                                                        meaning: dutyKind === 'skip' ? '' : e.meaning,
+                                                                    })}
+                                                                >
+                                                                    {confirmLabel}
+                                                                </button>
+                                                            ) : null}
                                                             <button
                                                                 type="button"
-                                                                className="text-[10px] font-bold text-ghs-teal hover:underline"
+                                                                className="text-[10px] font-bold text-ghs-muted hover:text-ghs-teal"
                                                                 onClick={() => setLegend(e.label, {
+                                                                    meaning: '',
+                                                                    dutyKind: 'skip',
+                                                                    dutyOverlaps: [],
+                                                                    officeDays: [],
+                                                                    outsideMorning: false,
                                                                     needsConfirm: false,
                                                                     userChecked: true,
                                                                 })}
                                                             >
-                                                                Confirm “{e.meaning}”
+                                                                Skip this code
                                                             </button>
-                                                        ) : null}
-                                                        <button
-                                                            type="button"
-                                                            className="text-[10px] font-bold text-ghs-muted hover:text-ghs-teal"
-                                                            onClick={() => setLegend(e.label, {
-                                                                meaning: '',
-                                                                dutyOverlaps: [],
-                                                                needsConfirm: false,
-                                                                userChecked: true,
-                                                            })}
-                                                        >
-                                                            Skip this code
-                                                        </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="p-2">
+                                            <td className="p-2 align-top min-w-[10rem]">
+                                                <label className="block text-[9px] font-bold uppercase tracking-widest text-ghs-muted mb-0.5">
+                                                    Name / unit
+                                                </label>
                                                 <input
-                                                    className="w-full h-9 rounded-lg border border-slate-100 bg-white px-2"
+                                                    className={`w-full min-h-9 rounded-lg border bg-white px-2 py-1.5 text-xs font-medium ${
+                                                        pending && !String(e.unit || '').trim()
+                                                            ? 'border-amber-300 ring-2 ring-amber-100'
+                                                            : 'border-slate-100'
+                                                    }`}
                                                     value={e.unit || ''}
-                                                    placeholder="e.g. General X-ray"
-                                                    onChange={(ev) => setLegend(e.label, { unit: ev.target.value })}
+                                                    placeholder={
+                                                        pending
+                                                            ? 'Type name if unknown — Antenatal, Ultrasound…'
+                                                            : 'e.g. General X-ray'
+                                                    }
+                                                    aria-label={`Name or unit for code ${e.label}`}
+                                                    onChange={(ev) => setLegend(e.label, {
+                                                        unit: ev.target.value,
+                                                        needsConfirm: pending ? true : e.needsConfirm,
+                                                        userChecked: pending ? false : e.userChecked,
+                                                    })}
                                                 />
+                                                <p className="text-[10px] font-medium text-ghs-muted mt-0.5 leading-snug">
+                                                    {e.unit
+                                                        ? 'Editable — change if the file name is wrong.'
+                                                        : 'We don’t know the name yet — type it here.'}
+                                                </p>
                                             </td>
                                         </tr>
                                     );

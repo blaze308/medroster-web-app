@@ -8,6 +8,7 @@ import ShiftPicker from './ShiftPicker';
 import ValidationPanel from './ValidationPanel';
 import SettingsModal from './SettingsModal';
 import { exportRosterPdf } from '../../lib/pdf-export';
+import { exportRosterCsv, exportRosterExcel } from '../../lib/spreadsheet-export';
 import { useFirebaseAuth } from '../FirebaseAuthProvider';
 
 function formatRange(start, end) {
@@ -28,6 +29,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
     const [generating, setGenerating] = useState(false);
     const [statusToast, setStatusToast] = useState(null); // { kind: 'success' | 'error', message }
     const [exporting, setExporting] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
 
     const fetchSchedule = useCallback(async () => {
         try {
@@ -52,22 +54,27 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
 
     const filteredStaff = useMemo(() => (data ? data.staff : []), [data]);
 
-    const handleExportPdf = async () => {
+    const handleExport = async (format = 'pdf') => {
         if (!data) return;
+        setExportOpen(false);
         setExporting(true);
         try {
             const ward = data.wards?.find((w) => String(w._id) === String(data.schedule.wardId));
             const department = data.departments?.find((d) => String(d._id) === String(data.schedule.departmentId));
-            await exportRosterPdf({
+            const payload = {
                 schedule: data.schedule,
                 hospital: data.hospital,
                 ward,
                 department,
                 staff: data.staff,
                 assignments: data.assignments,
-            });
+                rosterSetup: ward?.rosterSetup || data.schedule?.rosterSetup || null,
+            };
+            if (format === 'excel') await exportRosterExcel(payload);
+            else if (format === 'csv') exportRosterCsv(payload);
+            else await exportRosterPdf(payload);
         } catch (err) {
-            setStatusToast({ kind: 'error', message: 'PDF export failed: ' + err.message });
+            setStatusToast({ kind: 'error', message: 'Export failed: ' + err.message });
         } finally {
             setExporting(false);
         }
@@ -160,6 +167,8 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
     }
 
     const { schedule, hospital, departments, wards, assignments } = data;
+    const activeWard = wards?.find((w) => String(w._id) === String(schedule.wardId));
+    const wardRosterSetup = activeWard?.rosterSetup || schedule?.rosterSetup || null;
     const ward = wards?.find((w) => String(w._id) === String(schedule.wardId));
     const department = departments?.find((d) => String(d._id) === String(schedule.departmentId));
 
@@ -216,21 +225,45 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                         </button>
                         </>
                         )}
-                        <button
-                            onClick={handleExportPdf}
-                            disabled={exporting}
-                            className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-teal text-xs font-bold hover:bg-ghs-teal-light flex items-center gap-2 disabled:opacity-50 transition-all"
-                            title="Export PDF"
-                        >
-                            {exporting ? (
-                                <div className="w-3 h-3 border-2 border-ghs-teal/30 border-t-ghs-teal rounded-full animate-spin" />
-                            ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
-                            )}
-                            Export PDF
-                        </button>
+                        <div className="relative">
+                            <button
+                                onClick={() => setExportOpen((v) => !v)}
+                                disabled={exporting}
+                                className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-teal text-xs font-bold hover:bg-ghs-teal-light flex items-center gap-2 disabled:opacity-50 transition-all"
+                                title="Export roster"
+                            >
+                                {exporting ? (
+                                    <div className="w-3 h-3 border-2 border-ghs-teal/30 border-t-ghs-teal rounded-full animate-spin" />
+                                ) : (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                )}
+                                Export ▾
+                            </button>
+                            {exportOpen && !exporting ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="fixed inset-0 z-40 cursor-default"
+                                        aria-label="Close export menu"
+                                        onClick={() => setExportOpen(false)}
+                                    />
+                                    <div className="absolute right-0 mt-1 z-50 min-w-40 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                        {['pdf', 'excel', 'csv'].map((fmt) => (
+                                            <button
+                                                key={fmt}
+                                                type="button"
+                                                className="w-full px-4 py-2.5 text-left text-xs font-bold text-ghs-deep hover:bg-slate-50 uppercase"
+                                                onClick={() => handleExport(fmt)}
+                                            >
+                                                {fmt === 'excel' ? 'Excel (.xlsx)' : fmt}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
                         {canWrite && (
                         <>
                         <button
@@ -269,6 +302,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                     staff={filteredStaff}
                     assignments={assignments}
                     onCellClick={handleCellClick}
+                    rosterSetup={wardRosterSetup}
                 />
             </main>
 
@@ -282,6 +316,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                     currentShiftTypeId={picker.currentShiftTypeId}
                     onAssign={handleAssign}
                     onClose={() => setPicker(null)}
+                    rosterSetup={wardRosterSetup}
                 />
             )}
 
