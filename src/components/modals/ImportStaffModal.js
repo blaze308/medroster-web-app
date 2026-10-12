@@ -444,6 +444,68 @@ function HospitalImportModal({
     );
 }
 
+function FileDropZone({ accept, file, onFile, title, hint }) {
+    const inputRef = useRef(null);
+    const [dragging, setDragging] = useState(false);
+
+    const pick = (next) => {
+        if (!next) return;
+        onFile(next);
+    };
+
+    return (
+        <div>
+            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">
+                Upload file here
+            </p>
+            <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(true); }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(false); }}
+                onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragging(false);
+                    pick(e.dataTransfer.files?.[0] || null);
+                }}
+                className={`w-full rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                    dragging
+                        ? 'border-ghs-teal bg-ghs-teal/10'
+                        : file
+                            ? 'border-ghs-teal/40 bg-ghs-teal/5'
+                            : 'border-slate-200 bg-ghs-surface hover:border-ghs-teal hover:bg-ghs-teal/5'
+                }`}
+            >
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-slate-100 text-ghs-teal">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                </div>
+                <p className="text-sm font-extrabold text-ghs-deep">
+                    {file ? file.name : title}
+                </p>
+                <p className="text-[11px] font-medium text-ghs-muted mt-1.5 leading-snug">
+                    {file ? 'Click to choose a different file' : hint}
+                </p>
+            </button>
+            <input
+                ref={inputRef}
+                type="file"
+                accept={accept}
+                className="sr-only"
+                onChange={(e) => {
+                    pick(e.target.files?.[0] || null);
+                    e.target.value = '';
+                }}
+            />
+        </div>
+    );
+}
+
 function DeptWardPickers({ departments, wards, defaultDepartmentId, defaultWardId, setDefaultDepartmentId, setDefaultWardId }) {
     const departmentWards = wards.filter((w) => String(w.departmentId) === String(defaultDepartmentId));
     return (
