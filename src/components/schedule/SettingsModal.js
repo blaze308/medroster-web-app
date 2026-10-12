@@ -6,7 +6,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     const [form, setForm] = useState(() => ({
         maxConsecutiveDays: settings?.maxConsecutiveDays ?? 6,
         maxConsecutiveNights: settings?.maxConsecutiveNights ?? 3,
-        minSeniorStaffPerDay: settings?.minSeniorStaffPerDay ?? 1,
+        minSeniorStaffPerShift: settings?.minSeniorStaffPerShift ?? settings?.minSeniorStaffPerDay ?? 1,
         maxHoursPerWeek: settings?.maxHoursPerWeek ?? 48,
         validationRules: {
             warnConsecutiveShifts: settings?.validationRules?.warnConsecutiveShifts ?? true,
@@ -20,9 +20,12 @@ export default function SettingsModal({ settings, onSave, onClose }) {
     const handleSave = async () => {
         setBusy(true);
         try {
+            const minSenior = Math.max(0, form.minSeniorStaffPerShift || 0);
             await onSave({
                 ...form,
-                minSeniorStaffPerDay: Math.max(1, form.minSeniorStaffPerDay || 1),
+                minSeniorStaffPerDay: minSenior,
+                minSeniorStaffPerShift: minSenior,
+                supervisoryCoverageSeverity: 'warning',
                 validationRules: {
                     enforceLeaveConflicts: true,
                     enforceRoleShiftRestrictions: true,
@@ -41,14 +44,38 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 <div className="px-10 pt-10 pb-6 border-b border-slate-100">
                     <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">Schedule Settings</h2>
                     <p className="text-synclly-muted font-medium text-sm mt-1">
-                        Caps and hours. Leave, role, and morning senior cover stay on.
+                        Hard rules stay on for leave and personal restrictions. Senior coverage and Labour hours are guidelines (warnings only).
                     </p>
                 </div>
 
                 <div className="overflow-y-auto flex-1 p-10 space-y-8">
                     <section>
-                        <h3 className="text-sm font-extrabold text-synclly-deep mb-4">Limits</h3>
+                        <h3 className="text-sm font-extrabold text-synclly-deep mb-1">Hard rules</h3>
+                        <p className="text-xs font-medium text-synclly-muted mb-4">
+                            Leave conflicts and role / work restrictions always block invalid assignments.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h3 className="text-sm font-extrabold text-synclly-deep mb-1">Ghana guidelines</h3>
+                        <p className="text-xs font-medium text-synclly-muted mb-4">
+                            Soft targets for roster quality. Missing a senior never blocks save or generate.
+                        </p>
                         <div className="grid grid-cols-2 gap-4">
+                            <NumberField
+                                label="Min seniors per shift"
+                                value={form.minSeniorStaffPerShift}
+                                min={0}
+                                max={20}
+                                onChange={(v) => setForm((f) => ({ ...f, minSeniorStaffPerShift: Math.max(0, v) }))}
+                            />
+                            <NumberField
+                                label="Max hours per week"
+                                value={form.maxHoursPerWeek}
+                                min={20}
+                                max={80}
+                                onChange={(v) => setForm((f) => ({ ...f, maxHoursPerWeek: v }))}
+                            />
                             <NumberField
                                 label="Max consecutive days"
                                 value={form.maxConsecutiveDays}
@@ -63,21 +90,10 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                                 max={7}
                                 onChange={(v) => setForm((f) => ({ ...f, maxConsecutiveNights: v }))}
                             />
-                            <NumberField
-                                label="Min seniors on Morning"
-                                value={form.minSeniorStaffPerDay}
-                                min={1}
-                                max={20}
-                                onChange={(v) => setForm((f) => ({ ...f, minSeniorStaffPerDay: Math.max(1, v) }))}
-                            />
-                            <NumberField
-                                label="Max hours per week"
-                                value={form.maxHoursPerWeek}
-                                min={20}
-                                max={80}
-                                onChange={(v) => setForm((f) => ({ ...f, maxHoursPerWeek: v }))}
-                            />
                         </div>
+                        <p className="text-[11px] font-medium text-synclly-muted mt-3 leading-relaxed">
+                            Labour Act guideline is 40h/week; hospital target above is what generate prefers. Rest gaps (12h / 48h) always warn when short.
+                        </p>
                     </section>
 
                     <section>

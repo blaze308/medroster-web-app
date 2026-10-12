@@ -278,16 +278,33 @@ export const DEFAULT_SHIFT_TYPES = [
     { name: 'SOD', color: 'sod', startTime: '08:00', endTime: '20:00' },
 ];
 
-// Default validation/scheduling settings for any new hospital
+/** Default ward roster guidelines (soft — never block create/roster). */
+export function getDefaultWardGuidelines(hospitalSettings = {}) {
+    return {
+        minSeniorPerShift: Math.max(
+            0,
+            hospitalSettings.minSeniorStaffPerShift ?? hospitalSettings.minSeniorStaffPerDay ?? 1
+        ),
+        expectInCharge: true,
+        notes: '',
+    };
+}
+
+// Default validation/scheduling settings for any new hospital.
+// Labour Act 651 hours/rest are soft guidelines; hospital target stays 48h for Ghana practice.
 export function getDefaultHospitalSettings() {
     return {
         maxConsecutiveDays: 6,
         maxConsecutiveNights: 3,
+        // Prefer ≥1 senior/in-charge on Morning, Afternoon, Night — warning only
         minSeniorStaffPerDay: 1,
+        minSeniorStaffPerShift: 1,
+        supervisoryCoverageSeverity: 'warning',
         maxHoursPerWeek: 48,
         validationRules: {
             enforceLeaveConflicts: true,
             enforceRoleShiftRestrictions: true,
+            // Supervisory coverage is always soft (warnings), flag kept for compatibility
             enforceSupervisoryCoverage: true,
             warnConsecutiveShifts: true,
         },

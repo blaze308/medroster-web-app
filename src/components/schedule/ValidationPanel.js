@@ -6,8 +6,11 @@ import { apiFetch } from '../../lib/api';
 const TYPE_LABEL = {
     leave_conflict: 'Leave',
     role_shift_incompatible: 'Role',
+    work_restriction: 'Restriction',
     supervisory_coverage: 'Coverage',
     max_hours: 'Hours',
+    daily_rest: 'Rest',
+    weekly_rest: 'Rest',
     off_day_target: 'Off days',
 };
 
@@ -20,16 +23,21 @@ function groupIssues(items = []) {
             key = `leave:${item.staffId || item.staffName}`;
             title = item.staffName || 'Someone';
         } else if (item.type === 'supervisory_coverage') {
-            key = 'coverage';
-            title = 'Days with no senior / in-charge on Morning';
-        } else if (item.type === 'max_hours' || item.type === 'off_day_target') {
+            key = `coverage:${item.shift || 'any'}`;
+            title = `Shifts missing senior / in-charge${item.shift ? ` (${item.shift})` : ''}`;
+        } else if (
+            item.type === 'max_hours' ||
+            item.type === 'off_day_target' ||
+            item.type === 'daily_rest' ||
+            item.type === 'weekly_rest'
+        ) {
             key = `${item.type}:${item.staffId || item.message}`;
             title = item.staffName ? `${item.staffName} — ${item.message}` : item.message;
         } else {
             key = `${item.type}:${item.staffId || item.message}:${item.date || ''}`;
             title = item.message;
         }
-        if (!groups.has(key)) groups.set(key, { key, type: item.type, title, count: 0, dates: [], message: item.message });
+        if (!groups.has(key)) groups.set(key, { key, type: item.type, title, count: 0, dates: [], message: item.message, shift: item.shift });
         const group = groups.get(key);
         group.count += 1;
         if (item.date) group.dates.push(item.date);
@@ -39,7 +47,8 @@ function groupIssues(items = []) {
             group.title = group.message.replace(/ is on leave$/, '') + ` — ${group.count} shift${group.count === 1 ? '' : 's'} while on leave`;
         }
         if (group.type === 'supervisory_coverage') {
-            group.title = `${group.count} day${group.count === 1 ? '' : 's'} with no senior / in-charge on Morning`;
+            const shiftLabel = group.shift ? ` on ${group.shift}` : '';
+            group.title = `${group.count} shift${group.count === 1 ? '' : 's'} with no senior / in-charge${shiftLabel} (guideline)`;
             group.detail = group.dates
                 .map((d) => new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }))
                 .join(', ');
@@ -77,11 +86,12 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
     const errorCount = result.summary?.totalErrors || 0;
     const warningCount = result.summary?.totalWarnings || 0;
     const isValid = errorCount === 0;
+    const hasWarningsOnly = isValid && warningCount > 0;
 
     return (
         <div className="fixed bottom-6 right-6 z-40 w-[360px] max-w-[calc(100vw-3rem)]">
             <div className={`bg-white rounded-[24px] border shadow-synclly-lg overflow-hidden transition-all ${
-                isValid ? 'border-emerald-100' : 'border-rose-100'
+                !isValid ? 'border-rose-100' : hasWarningsOnly ? 'border-amber-100' : 'border-emerald-100'
             }`}>
                 <button
                     type="button"
@@ -90,7 +100,11 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
                 >
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            isValid ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'
+                            !isValid
+                                ? 'bg-rose-50 text-rose-500'
+                                : hasWarningsOnly
+                                    ? 'bg-amber-50 text-amber-600'
+                                    : 'bg-emerald-50 text-emerald-500'
                         }`}>
                             {isValid ? (
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +120,11 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
                         </div>
                         <div className="text-left">
                             <p className="text-sm font-extrabold text-synclly-deep">
-                                {isValid ? 'Schedule valid' : `${errorGroups.length} ${errorGroups.length === 1 ? 'issue' : 'issues'}`}
+                                {!isValid
+                                    ? `${errorGroups.length} ${errorGroups.length === 1 ? 'issue' : 'issues'}`
+                                    : hasWarningsOnly
+                                        ? 'Guidelines to review'
+                                        : 'Schedule valid'}
                             </p>
                             <p className="text-[11px] font-bold text-synclly-muted uppercase tracking-wider">
                                 {warningCount > 0 ? `${warningGroups.length} warning${warningGroups.length === 1 ? '' : 's'}` : 'Real-time check'}

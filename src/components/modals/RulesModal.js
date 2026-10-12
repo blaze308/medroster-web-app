@@ -2,39 +2,42 @@
 
 const RULE_GROUPS = [
     {
+        title: 'Hard rules',
+        items: [
+            'Staff on approved leave cannot be assigned.',
+            'No-night and maternity night flags block night duty (Labour Act §55 for protected workers).',
+            'In-charge and assistant: weekday mornings only; off on weekends and marked holidays.',
+            'Only-morning, only-afternoon, and weekday-only switches are hard personal restrictions.',
+        ],
+    },
+    {
+        title: 'Ghana guidelines (warnings only)',
+        items: [
+            'Prefer at least one senior or in-charge on Morning, Afternoon, and Night — missing coverage warns, never blocks.',
+            'SOD counts toward day-side senior presence.',
+            'Labour Act guideline: ~40h/week; hospital target defaults to 48h for Ghana practice.',
+            'Labour Act §41: aim for ≥12h rest between shifts.',
+            'Labour Act §42: aim for 48h contiguous rest in a 7-day window.',
+            'Shortages happen — generate and save still work without seniors.',
+        ],
+    },
+    {
         title: 'Shifts',
         items: [
             'Morning is 8:00 AM to 2:00 PM.',
             'Afternoon is 2:00 PM to 8:00 PM.',
             'Night is 8:00 PM to 8:00 AM.',
+            'SOD (Supervisor on Duty) is 8:00 AM to 8:00 PM.',
         ],
     },
     {
-        title: 'Leave and Holidays',
+        title: 'Leave, rest, preferences',
         items: [
-            'Staff on general leave are removed from shifts completely.',
             'Study leave means no weekend shifts.',
             'Marked cycle holidays add to regular staff off-day targets.',
-            'Incharge and assistant staff are off on weekday holidays.',
-        ],
-    },
-    {
-        title: 'Roles and Restrictions',
-        items: [
-            'Each ward can have one incharge and one assistant.',
-            'Incharge and assistant work Monday to Friday, morning shifts only.',
-            'At least one senior or in-charge on Morning each day — not afternoon or night.',
-            'No night shift and maternity restrictions block night duty.',
-            'Only morning, only afternoon, and weekday-only switches are hard rules.',
-        ],
-    },
-    {
-        title: 'Rest and Preferences',
-        items: [
-            'Regular staff target 12 off days in a 30/31-day cycle, plus marked holidays.',
-            'Night shifts are capped at 3 by default; a fourth night is allowed only with a warning.',
-            'Preferred off days and preferred shifts are not hard priority rules.',
-            'Auto-generation applies core rules first, then tries preferences when requested.',
+            'Regular staff target ~12 off days in a 30/31-day cycle, plus marked holidays.',
+            'Night shifts are capped at 3 by default; a fourth night is a caution warning.',
+            'Preferred off days and preferred shifts are soft sort keys only.',
         ],
     },
 ];
@@ -47,7 +50,7 @@ export default function RulesModal({ onClose }) {
                     <div>
                         <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">Rules</h2>
                         <p className="text-sm font-medium text-synclly-muted mt-1">
-                            Current scheduling rules, restrictions, and constraints used by the roster.
+                            Hard personal restrictions vs Ghana roster guidelines (warn only).
                         </p>
                     </div>
                     <button

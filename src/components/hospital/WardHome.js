@@ -6,6 +6,8 @@ import { apiFetch } from '../../lib/api';
 import StaffFormModal from '../modals/StaffFormModal';
 import ImportStaffModal from '../modals/ImportStaffModal';
 import { useFirebaseAuth } from '../FirebaseAuthProvider';
+import { isSupervisoryCapable } from '../../lib/validation';
+import { getDefaultWardGuidelines } from '../../lib/ghana-data';
 
 function currentMonthRange() {
     const now = new Date();
@@ -76,6 +78,23 @@ export default function WardHome({ hospital, ward, department, onChange }) {
             return `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) || (s.rank || '').toLowerCase().includes(q);
         });
     }, [staff, ward._id, search]);
+
+    const guidelines = useMemo(
+        () => ({ ...getDefaultWardGuidelines(hospital.settings || {}), ...(ward.guidelines || {}) }),
+        [hospital.settings, ward.guidelines]
+    );
+
+    const readinessTips = useMemo(() => {
+        const tips = [];
+        const allOnWard = staff.filter((s) => String(s.wardId) === String(ward._id));
+        if (guidelines.expectInCharge !== false && !allOnWard.some((s) => s.wardRole === 'incharge')) {
+            tips.push('No ward in-charge assigned yet — tip only; you can still roster.');
+        }
+        if ((guidelines.minSeniorPerShift ?? 1) > 0 && !allOnWard.some((s) => isSupervisoryCapable(s))) {
+            tips.push('No senior-ranked or supervisory staff on this ward yet — coverage will warn on the roster.');
+        }
+        return tips;
+    }, [staff, ward._id, guidelines]);
 
     const wardSchedules = useMemo(
         () => schedules
@@ -179,6 +198,15 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     Current cycle: {formatRange(latestSchedule.startDate, latestSchedule.endDate)}
                     {latestSchedule.assignmentCount != null ? ` · ${latestSchedule.assignmentCount} shifts` : ''}
                 </p>
+            )}
+
+            {readinessTips.length > 0 && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/90 px-4 py-3 space-y-1.5">
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-800/80">Ward tips</p>
+                    {readinessTips.map((tip) => (
+                        <p key={tip} className="text-xs font-medium text-amber-950/80 leading-snug">{tip}</p>
+                    ))}
+                </div>
             )}
 
             {error && (

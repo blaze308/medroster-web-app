@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import DepartmentTemplatePicker from '../modals/DepartmentTemplatePicker';
 import { getDisplayWardsForDepartment } from '../../lib/org-units';
+import { getDefaultWardGuidelines } from '../../lib/ghana-data';
 
 export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrite = true }) {
     const [showAdd, setShowAdd] = useState(false);
@@ -11,11 +12,17 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
     const [editName, setEditName] = useState('');
     const [editDesc, setEditDesc] = useState('');
     const [wardDrafts, setWardDrafts] = useState({});
+    const [wardGuidelinesOpen, setWardGuidelinesOpen] = useState({});
+    const [wardGuidelineDrafts, setWardGuidelineDrafts] = useState({});
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
 
     const departments = hospital.departments || [];
     const wards = hospital.wards || [];
+    const defaultGuidelines = getDefaultWardGuidelines(hospital.settings || {});
+
+    const guidelinesFor = (departmentId) =>
+        wardGuidelineDrafts[departmentId] || defaultGuidelines;
 
     const handleAddBulk = async (deps) => {
         setBusy(true);
@@ -73,12 +80,22 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
     const handleAddWard = async (departmentId) => {
         const name = (wardDrafts[departmentId] || '').trim();
         if (!name) return;
+        const guidelines = guidelinesFor(departmentId);
         try {
             const data = await apiFetch(`/api/hospitals/${hospital._id}/wards`, {
                 method: 'POST',
-                body: JSON.stringify({ departmentId, name }),
+                body: JSON.stringify({
+                    departmentId,
+                    name,
+                    guidelines: {
+                        minSeniorPerShift: Math.max(0, Number(guidelines.minSeniorPerShift) || 0),
+                        expectInCharge: guidelines.expectInCharge !== false,
+                        notes: String(guidelines.notes || '').trim(),
+                    },
+                }),
             });
             setWardDrafts((drafts) => ({ ...drafts, [departmentId]: '' }));
+            setWardGuidelinesOpen((open) => ({ ...open, [departmentId]: false }));
             await onChange();
             onWardOpen?.(data._id);
         } catch (err) {
@@ -199,19 +216,71 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
                                             )}
                                         </div>
                                         {canWrite && (
-                                        <div className="flex gap-2">
-                                            <input
-                                                value={wardDrafts[d._id] || ''}
-                                                onChange={(e) => setWardDrafts((drafts) => ({ ...drafts, [d._id]: e.target.value }))}
-                                                placeholder="New ward name"
-                                                className="min-w-0 flex-1 h-9 bg-synclly-surface border border-slate-100 rounded-xl px-3 text-xs font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:border-synclly-coral"
-                                            />
+                                        <div className="space-y-2">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    value={wardDrafts[d._id] || ''}
+                                                    onChange={(e) => setWardDrafts((drafts) => ({ ...drafts, [d._id]: e.target.value }))}
+                                                    placeholder="New ward name"
+                                                    className="min-w-0 flex-1 h-9 bg-synclly-surface border border-slate-100 rounded-xl px-3 text-xs font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:border-synclly-coral"
+                                                />
+                                                <button
+                                                    onClick={() => handleAddWard(d._id)}
+                                                    className="h-9 px-3 rounded-xl bg-synclly-coral text-white text-[10px] font-bold hover:bg-synclly-coral-hover"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
                                             <button
-                                                onClick={() => handleAddWard(d._id)}
-                                                className="h-9 px-3 rounded-xl bg-synclly-coral text-white text-[10px] font-bold hover:bg-synclly-coral-hover"
+                                                type="button"
+                                                onClick={() => setWardGuidelinesOpen((open) => ({ ...open, [d._id]: !open[d._id] }))}
+                                                className="text-[10px] font-bold text-synclly-muted hover:text-synclly-coral uppercase tracking-widest"
                                             >
-                                                Add
+                                                {wardGuidelinesOpen[d._id] ? 'Hide guidelines' : 'Roster guidelines'}
                                             </button>
+                                            {wardGuidelinesOpen[d._id] && (
+                                                <div className="rounded-xl bg-amber-50/80 border border-amber-100 p-3 space-y-2">
+                                                    <p className="text-[11px] font-medium text-amber-900/80 leading-snug">
+                                                        Soft tips only — missing seniors or an in-charge never blocks saving.
+                                                    </p>
+                                                    <label className="flex items-start gap-2 text-[11px] font-medium text-synclly-deep">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="mt-0.5"
+                                                            checked={guidelinesFor(d._id).expectInCharge !== false}
+                                                            onChange={(e) =>
+                                                                setWardGuidelineDrafts((drafts) => ({
+                                                                    ...drafts,
+                                                                    [d._id]: { ...guidelinesFor(d._id), expectInCharge: e.target.checked },
+                                                                }))
+                                                            }
+                                                        />
+                                                        Expect a ward in-charge on staff (tip only)
+                                                    </label>
+                                                    <label className="flex items-center gap-2 text-[11px] font-medium text-synclly-deep">
+                                                        <span className="shrink-0">Min senior / shift</span>
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            max={10}
+                                                            value={guidelinesFor(d._id).minSeniorPerShift ?? 1}
+                                                            onChange={(e) =>
+                                                                setWardGuidelineDrafts((drafts) => ({
+                                                                    ...drafts,
+                                                                    [d._id]: {
+                                                                        ...guidelinesFor(d._id),
+                                                                        minSeniorPerShift: Math.max(0, Number(e.target.value) || 0),
+                                                                    },
+                                                                }))
+                                                            }
+                                                            className="w-14 h-8 rounded-lg border border-amber-200 bg-white px-2 text-xs font-bold"
+                                                        />
+                                                    </label>
+                                                    <p className="text-[10px] font-medium text-synclly-muted leading-snug">
+                                                        Prefer a senior or in-charge on Morning, Afternoon, and Night. Labour hours/rest stay warnings on the roster.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                         )}
                                     </div>
