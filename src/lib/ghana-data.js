@@ -262,6 +262,20 @@ export const LEAVE_TYPES = [
     'Unpaid',
 ];
 
+/** Friendly Ghana leave guide (soft — facilities may grant more). */
+export const LEAVE_LEGEND = [
+    { key: 'annual', label: 'Annual', days: '15+ work days', note: '~21 days off if weekends count too' },
+    { key: 'maternity', label: 'Maternity', days: '~12 weeks', note: '~84 days off including weekends' },
+    { key: 'paternity', label: 'Paternity', days: 'A few days', note: 'Usually right after birth' },
+    { key: 'sick', label: 'Sick', days: 'As needed', note: 'Bring a doctor’s note when you can' },
+    { key: 'study', label: 'Study', days: 'As agreed', note: 'For courses or training' },
+    { key: 'casual', label: 'Casual', days: '1–3 days', note: 'Short personal time off' },
+    { key: 'compassionate', label: 'Compassionate', days: 'A few days', note: 'Family loss or emergency' },
+    { key: 'part', label: 'Part', days: 'Mid-month', note: 'Leave starts or ends mid-roster' },
+    { key: 'unpaid', label: 'Unpaid', days: 'As agreed', note: 'Time off without pay' },
+    { key: 'other', label: 'Other', days: 'Varies', note: 'Anything that doesn’t fit above' },
+];
+
 export const WORK_RESTRICTIONS = ['none', 'onlyMorning', 'onlyAfternoon', 'weekdayOnly', 'studyLeave'];
 
 // Ghana Labour Act 651 \u00a720: minimum 15 days annual leave
@@ -276,6 +290,8 @@ export const DEFAULT_SHIFT_TYPES = [
     { name: 'Afternoon', color: 'afternoon', startTime: '14:00', endTime: '20:00' },
     { name: 'Night', color: 'night', startTime: '20:00', endTime: '08:00' },
     { name: 'SOD', color: 'sod', startTime: '08:00', endTime: '20:00' },
+    // Office / Polyclinic day hours (not a ward rotation) — 6 hours
+    { name: 'Office', color: 'office', startTime: '08:00', endTime: '14:00' },
 ];
 
 /** Default ward roster guidelines (soft — never block create/roster). */

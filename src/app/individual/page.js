@@ -127,10 +127,17 @@ export default function IndividualDashboard() {
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-2xl font-extrabold text-ghs-deep">Individual workspace</h1>
-                        <p className="text-sm text-ghs-muted mt-1">Monthly schedules · up to 50 staff · unlimited PDF exports</p>
+                        <p className="text-sm text-ghs-muted mt-1">Monthly schedules · calendar &amp; auto-generate · up to 50 staff · unlimited PDF · saved to your account</p>
                     </div>
                     <div className="flex gap-2">
-                        <button type="button" onClick={() => setShowImport(true)} className="h-11 px-4 rounded-xl border text-sm font-bold">Import staff CSV</button>
+                        <button
+                            type="button"
+                            onClick={() => setShowImport(true)}
+                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left"
+                        >
+                            <span className="block">Import staff data</span>
+                            <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
+                        </button>
                         <button type="button" onClick={createSchedule} disabled={creating} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50">
                             New month schedule
                         </button>
@@ -166,33 +173,44 @@ export default function IndividualDashboard() {
                     onClose={() => setShowImport(false)}
                     onImported={async (data) => {
                         if (!data.staff?.length) return;
-                        // Attach imported staff to newest schedule or create one
+                        const now = new Date();
+                        const fallbackStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                        const fallbackEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                        const startDate = data.startDate || fallbackStart.toISOString().slice(0, 10);
+                        const endDate = data.endDate || fallbackEnd.toISOString().slice(0, 10);
+                        const name = data.title
+                            || fallbackStart.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
                         let target = schedules[0];
                         if (!target) {
-                            const now = new Date();
-                            const start = new Date(now.getFullYear(), now.getMonth(), 1);
-                            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
                             target = await apiFetch('/api/me/schedules', {
                                 method: 'POST',
                                 body: JSON.stringify({
-                                    name: start.toLocaleString('en-GB', { month: 'long', year: 'numeric' }),
-                                    startDate: start.toISOString().slice(0, 10),
-                                    endDate: end.toISOString().slice(0, 10),
+                                    name,
+                                    startDate,
+                                    endDate,
                                     staff: data.staff,
-                                    assignments: [],
+                                    assignments: data.assignments || [],
                                 }),
                             });
                             setSchedules([target]);
                         } else {
-                            const updated = await apiFetch(`/api/me/schedules/${target._id}`, {
+                            target = await apiFetch(`/api/me/schedules/${target._id}`, {
                                 method: 'PATCH',
                                 body: JSON.stringify({
+                                    name: data.title || target.name,
+                                    startDate: data.startDate || target.startDate,
+                                    endDate: data.endDate || target.endDate,
                                     staff: [...(target.staff || []), ...data.staff].slice(0, 50),
+                                    assignments: [
+                                        ...(target.assignments || []),
+                                        ...(data.assignments || []),
+                                    ],
                                 }),
                             });
-                            setSchedules((prev) => prev.map((x) => (x._id === updated._id ? updated : x)));
+                            setSchedules((prev) => prev.map((x) => (x._id === target._id ? target : x)));
                         }
                         setShowImport(false);
+                        router.push(`/individual/${target._id}`);
                     }}
                 />
             )}

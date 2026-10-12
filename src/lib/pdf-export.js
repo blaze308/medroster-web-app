@@ -7,6 +7,7 @@ const SHIFT_CODE = {
     Afternoon: 'A',
     Night: 'N',
     SOD: 'SOD',
+    Office: 'OFC',
 };
 
 function dateKey(d) {
@@ -159,6 +160,7 @@ export async function exportRosterPdf({ schedule, hospital, ward, department, st
                     const color = shiftName === 'Morning' ? [200, 100, 0] :
                                   shiftName === 'Afternoon' ? [3, 105, 161] :
                                   shiftName === 'Night' ? [109, 40, 217] :
+                                  shiftName === 'Office' ? [4, 120, 87] :
                                   [0, 107, 107];
                     return { content: code, styles: { textColor: color, fontStyle: 'bold' } };
                 }
@@ -186,12 +188,13 @@ export async function exportRosterPdf({ schedule, hospital, ward, department, st
     }
 
     // Summary row — count M, A, N per day
-    const shiftCodesToCount = ['Morning', 'Afternoon', 'Night', 'SOD'];
+    const shiftCodesToCount = ['Morning', 'Afternoon', 'Night', 'SOD', 'Office'];
     const summaryRows = shiftCodesToCount.map((shiftName) => {
         const code = getShiftCode(shiftName);
         const color = shiftName === 'Morning' ? [200, 100, 0] :
                       shiftName === 'Afternoon' ? [3, 105, 161] :
                       shiftName === 'Night' ? [109, 40, 217] :
+                      shiftName === 'Office' ? [4, 120, 87] :
                       [0, 107, 107];
 
         let hasAny = false;

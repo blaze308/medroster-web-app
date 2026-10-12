@@ -86,7 +86,7 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
                     <h2 className="text-2xl font-extrabold tracking-tight">{staff.length} {staff.length === 1 ? 'Staff Member' : 'Staff Members'}</h2>
                     <p className="text-synclly-muted font-medium text-sm mt-1">
                         {canWrite
-                            ? 'Import a CSV, or an existing duty roster (Word, Excel, PDF, or a photo).'
+                            ? 'Import a duty roster (photo, PDF, Word, or Excel).'
                             : 'All clinical and support personnel.'}
                     </p>
                 </div>
@@ -99,8 +99,12 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
                     />
                     {canWrite && (
                         <>
-                            <button onClick={() => setShowImport(true)} className="btn btn-secondary text-xs py-2">
-                                Import roster
+                            <button
+                                onClick={() => setShowImport(true)}
+                                className="btn btn-secondary text-xs py-2 leading-tight text-left"
+                            >
+                                <span className="block">Import staff data</span>
+                                <span className="block text-[9px] font-medium opacity-70 normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
                             </button>
                             <button onClick={() => setShowAdd(true)} className="btn btn-primary text-xs py-2">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>

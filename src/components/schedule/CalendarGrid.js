@@ -97,7 +97,7 @@ export default function CalendarGrid({ startDate, endDate, holidays = [], staff,
             <div className="bg-white rounded-[32px] border border-slate-100 p-16 text-center shadow-synclly">
                 <h3 className="text-lg font-extrabold text-ghs-deep mb-1">No staff in this view</h3>
                 <p className="text-ghs-muted font-medium text-sm">
-                    Add staff or pick a different department to start scheduling.
+                    Add or import staff to start scheduling.
                 </p>
             </div>
         );

@@ -182,8 +182,12 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     ) : null}
                     {canWrite && (
                         <>
-                            <button onClick={() => setShowImport(true)} className="btn btn-secondary text-xs py-2">
-                                Import roster
+                            <button
+                                onClick={() => setShowImport(true)}
+                                className="btn btn-secondary text-xs py-2 leading-tight text-left"
+                            >
+                                <span className="block">Import staff data</span>
+                                <span className="block text-[9px] font-medium opacity-70 normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
                             </button>
                             <button onClick={() => setShowAdd(true)} className="btn btn-secondary text-xs py-2">
                                 Add staff
@@ -265,7 +269,10 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     </p>
                     {canWrite && (
                         <div className="flex gap-2">
-                            <button onClick={() => setShowImport(true)} className="btn btn-secondary text-xs py-2">Import roster</button>
+                            <button onClick={() => setShowImport(true)} className="btn btn-secondary text-xs py-2 leading-tight text-left">
+                                <span className="block">Import staff data</span>
+                                <span className="block text-[9px] font-medium opacity-70 normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
+                            </button>
                             <button onClick={() => setShowAdd(true)} className="btn btn-primary text-xs py-2">Add staff</button>
                         </div>
                     )}
@@ -321,6 +328,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     defaultDepartmentId={ward.departmentId}
                     defaultWardId={ward._id}
                     lockWard
+                    savedRosterSetup={ward.rosterSetup || null}
                     onClose={async () => {
                         setShowImport(false);
                         await refresh();

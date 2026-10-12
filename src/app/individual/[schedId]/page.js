@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiFetch } from '../../../lib/api';
 import { exportRosterPdf } from '../../../lib/pdf-export';
 import { useFirebaseAuth } from '../../../components/FirebaseAuthProvider';
+import SandboxScheduleShell from '../../../components/schedule/SandboxScheduleShell';
 
 export default function IndividualSchedulePage() {
     const { schedId } = useParams();
@@ -13,61 +13,115 @@ export default function IndividualSchedulePage() {
     const { status } = useFirebaseAuth();
     const [schedule, setSchedule] = useState(null);
     const [error, setError] = useState('');
+    const [exporting, setExporting] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const load = useCallback(async () => {
+        try {
+            const data = await apiFetch(`/api/me/schedules/${schedId}`);
+            setSchedule({
+                ...data,
+                wardName: data.wardName || data.name || 'Roster',
+                staff: data.staff || [],
+                assignments: data.assignments || [],
+                holidays: data.holidays || [],
+            });
+        } catch (e) {
+            setError(e.message);
+        }
+    }, [schedId]);
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/auth/signin');
         if (status !== 'authenticated') return;
-        apiFetch(`/api/me/schedules/${schedId}`)
-            .then(setSchedule)
-            .catch((e) => setError(e.message));
-    }, [status, schedId, router]);
+        load();
+    }, [status, schedId, router, load]);
+
+    const persist = async (next) => {
+        setSchedule(next);
+        setSaving(true);
+        setError('');
+        try {
+            const updated = await apiFetch(`/api/me/schedules/${schedId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    name: next.name || next.wardName,
+                    startDate: next.startDate,
+                    endDate: next.endDate,
+                    staff: next.staff || [],
+                    assignments: next.assignments || [],
+                    holidays: next.holidays || [],
+                }),
+            });
+            setSchedule({
+                ...updated,
+                wardName: updated.wardName || updated.name || next.wardName,
+                staff: updated.staff || [],
+                assignments: updated.assignments || [],
+                holidays: updated.holidays || [],
+            });
+        } catch (e) {
+            setError(e.message || 'Could not save');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleExport = async () => {
+        if (!schedule) return;
+        setExporting(true);
+        try {
+            await exportRosterPdf({
+                schedule,
+                hospital: { name: 'Individual account' },
+                ward: { name: schedule.wardName || schedule.name || 'Roster' },
+                staff: schedule.staff || [],
+                assignments: schedule.assignments || [],
+            });
+        } finally {
+            setExporting(false);
+        }
+    };
 
     if (!schedule && !error) {
         return <div className="min-h-screen flex items-center justify-center text-ghs-muted">Loading…</div>;
     }
 
-    return (
-        <div className="min-h-screen bg-ghs-surface">
-            <div className="max-w-4xl mx-auto px-6 py-8">
-                <Link href="/individual" className="text-xs font-bold text-ghs-muted">← Back</Link>
-                {error && <div className="mt-4 text-rose-600 text-sm font-bold">{error}</div>}
-                {schedule && (
-                    <>
-                        <div className="flex items-center justify-between mt-4 mb-6">
-                            <div>
-                                <h1 className="text-2xl font-extrabold text-ghs-deep">{schedule.name}</h1>
-                                <p className="text-sm text-ghs-muted">{schedule.startDate} → {schedule.endDate}</p>
-                            </div>
-                            <button
-                                type="button"
-                                className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold"
-                                onClick={() => exportRosterPdf({
-                                    schedule,
-                                    hospital: { name: 'Individual account' },
-                                    ward: { name: 'Roster' },
-                                    staff: schedule.staff || [],
-                                    assignments: schedule.assignments || [],
-                                })}
-                            >
-                                Export PDF
-                            </button>
-                        </div>
-                        <div className="bg-white rounded-2xl border p-5">
-                            <h2 className="font-extrabold mb-3">Staff ({(schedule.staff || []).length})</h2>
-                            <ul className="divide-y text-sm">
-                                {(schedule.staff || []).map((s, i) => (
-                                    <li key={s._id || i} className="py-2 font-semibold">
-                                        {s.firstName} {s.lastName} <span className="text-ghs-muted font-medium">· {s.rank}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p className="text-xs text-ghs-muted mt-4">
-                                Full calendar assignment UI for individual schedules can use the hospital schedule editor after upgrade, or edit staff via Import CSV on the dashboard.
-                            </p>
-                        </div>
-                    </>
-                )}
+    if (error && !schedule) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+                <p className="text-rose-600 text-sm font-bold">{error}</p>
+                <button type="button" onClick={() => router.push('/individual')} className="text-sm font-bold text-ghs-teal">
+                    Back to schedules
+                </button>
             </div>
-        </div>
+        );
+    }
+
+    return (
+        <>
+            {error && (
+                <div className="bg-rose-50 border-b border-rose-100 px-4 py-2 text-xs font-bold text-rose-600 text-center">
+                    {error}
+                </div>
+            )}
+            {saving && (
+                <div className="bg-slate-50 border-b border-slate-100 px-4 py-1.5 text-[10px] font-bold text-ghs-muted uppercase tracking-widest text-center">
+                    Saving to your account…
+                </div>
+            )}
+            <SandboxScheduleShell
+                mode="individual"
+                schedule={schedule}
+                onChange={persist}
+                maxStaff={50}
+                title={schedule.name || schedule.wardName || 'Roster'}
+                subtitle="Saved to your account · import, calendar, and auto-generate"
+                backHref="/individual"
+                backLabel="← Schedules"
+                onExportPdf={handleExport}
+                exporting={exporting}
+            />
+        </>
     );
 }
