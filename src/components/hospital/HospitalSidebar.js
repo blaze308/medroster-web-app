@@ -28,11 +28,7 @@ export default function HospitalSidebar({
 
             <aside className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-100 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:relative flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <Link href="/" className="p-6 mb-2 flex items-center gap-3 hover:bg-slate-50/50 transition-colors">
-                    <div className="w-10 h-10 bg-ghs-teal rounded-xl flex items-center justify-center text-white shadow-lg shadow-ghs-teal/20">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                        </svg>
-                    </div>
+                    <img src="/logo.svg" alt="MedRoster" className="w-10 h-10 rounded-xl shadow-lg shadow-ghs-teal/20" />
                     <div className="flex flex-col">
                         <span className="text-base font-extrabold text-ghs-deep leading-tight">MedRoster</span>
                         <span className="text-[10px] font-bold text-ghs-muted uppercase tracking-wider">Dashboard</span>

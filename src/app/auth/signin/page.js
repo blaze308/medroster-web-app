@@ -87,11 +87,7 @@ function SignInForm() {
         <div className="min-h-screen bg-ghs-surface flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-ghs-teal rounded-[20px] mb-5 shadow-lg shadow-ghs-teal/25">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                        </svg>
-                    </div>
+                    <img src="/logo.svg" alt="MedRoster" className="inline-block w-16 h-16 rounded-[20px] mb-5 shadow-lg shadow-ghs-teal/25" />
                     <h1 className="text-3xl font-extrabold text-ghs-deep tracking-tight">MedRoster</h1>
                     <p className="text-ghs-muted font-medium mt-1 text-sm">Ghana Hospital Staff Scheduling</p>
                 </div>
