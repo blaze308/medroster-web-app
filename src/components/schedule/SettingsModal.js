@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
+import RuleModesPanel from '../shared/RuleModesPanel';
 
 export default function SettingsModal({ settings, onSave, onClose }) {
     const [form, setForm] = useState(() => ({
@@ -8,14 +10,9 @@ export default function SettingsModal({ settings, onSave, onClose }) {
         maxConsecutiveNights: settings?.maxConsecutiveNights ?? 3,
         minSeniorStaffPerShift: settings?.minSeniorStaffPerShift ?? settings?.minSeniorStaffPerDay ?? 1,
         maxHoursPerWeek: settings?.maxHoursPerWeek ?? 48,
-        validationRules: {
-            warnConsecutiveShifts: settings?.validationRules?.warnConsecutiveShifts ?? true,
-        },
+        ruleModes: normalizeRuleModes(settings?.ruleModes || getDefaultRuleModes()),
     }));
     const [busy, setBusy] = useState(false);
-
-    const updateRule = (key, value) =>
-        setForm((f) => ({ ...f, validationRules: { ...f.validationRules, [key]: value } }));
 
     const handleSave = async () => {
         setBusy(true);
@@ -26,11 +23,12 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 minSeniorStaffPerDay: minSenior,
                 minSeniorStaffPerShift: minSenior,
                 supervisoryCoverageSeverity: 'warning',
+                ruleModes: normalizeRuleModes(form.ruleModes),
                 validationRules: {
                     enforceLeaveConflicts: true,
                     enforceRoleShiftRestrictions: true,
                     enforceSupervisoryCoverage: true,
-                    warnConsecutiveShifts: form.validationRules.warnConsecutiveShifts !== false,
+                    warnConsecutiveShifts: true,
                 },
             });
         } finally {
@@ -44,7 +42,7 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                 <div className="px-10 pt-10 pb-6 border-b border-slate-100">
                     <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">Schedule Settings</h2>
                     <p className="text-synclly-muted font-medium text-sm mt-1">
-                        Hard rules stay on for leave and personal restrictions. Senior coverage and Labour hours are guidelines (warnings only).
+                        Hard rules stay on for leave and personal restrictions. Choose Flexible or Hardened for on-ground guidelines.
                     </p>
                 </div>
 
@@ -57,9 +55,9 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                     </section>
 
                     <section>
-                        <h3 className="text-sm font-extrabold text-synclly-deep mb-1">Ghana guidelines</h3>
+                        <h3 className="text-sm font-extrabold text-synclly-deep mb-1">Targets</h3>
                         <p className="text-xs font-medium text-synclly-muted mb-4">
-                            Soft targets for roster quality. Missing a senior never blocks save or generate.
+                            Numbers used for both Flexible (warn) and Hardened (enforce) modes.
                         </p>
                         <div className="grid grid-cols-2 gap-4">
                             <NumberField
@@ -91,22 +89,12 @@ export default function SettingsModal({ settings, onSave, onClose }) {
                                 onChange={(v) => setForm((f) => ({ ...f, maxConsecutiveNights: v }))}
                             />
                         </div>
-                        <p className="text-[11px] font-medium text-synclly-muted mt-3 leading-relaxed">
-                            Labour Act guideline is 40h/week; hospital target above is what generate prefers. Rest gaps (12h / 48h) always warn when short.
-                        </p>
                     </section>
 
-                    <section>
-                        <h3 className="text-sm font-extrabold text-synclly-deep mb-4">Optional warning</h3>
-                        <div className="space-y-2">
-                            <RuleToggle
-                                label="Warn on consecutive shifts"
-                                description="Show a warning when a staff exceeds consecutive day/night caps."
-                                value={form.validationRules.warnConsecutiveShifts}
-                                onChange={(v) => updateRule('warnConsecutiveShifts', v)}
-                            />
-                        </div>
-                    </section>
+                    <RuleModesPanel
+                        modes={form.ruleModes}
+                        onChange={(ruleModes) => setForm((f) => ({ ...f, ruleModes }))}
+                    />
                 </div>
 
                 <div className="px-10 py-5 border-t border-slate-100 flex justify-between gap-3 sticky bottom-0 bg-white">
@@ -145,23 +133,5 @@ function NumberField({ label, value, onChange, min, max }) {
                 className="w-full h-12 bg-synclly-surface border border-slate-100 rounded-xl px-4 text-sm font-bold text-synclly-deep focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
             />
         </div>
-    );
-}
-
-function RuleToggle({ label, description, value, onChange }) {
-    return (
-        <button
-            type="button"
-            onClick={() => onChange(!value)}
-            className="w-full p-4 rounded-2xl bg-synclly-surface hover:bg-slate-100 border border-slate-100 flex items-center justify-between gap-4 text-left transition-all"
-        >
-            <div>
-                <p className="text-sm font-extrabold text-synclly-deep">{label}</p>
-                <p className="text-xs font-medium text-synclly-muted mt-0.5">{description}</p>
-            </div>
-            <span className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${value ? 'bg-synclly-coral' : 'bg-slate-200'}`}>
-                <span className={`block w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${value ? 'translate-x-5' : ''}`} />
-            </span>
-        </button>
     );
 }

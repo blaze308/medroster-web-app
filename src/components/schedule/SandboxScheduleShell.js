@@ -12,6 +12,8 @@ import {
     countGeneratableSlots,
 } from '../../lib/sandbox-roster';
 import { preferredSourceCode } from '../../lib/roster-setup';
+import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
+import RuleModesPanel from '../shared/RuleModesPanel';
 
 const CLEAR_OPTIONS = [
     {
@@ -73,6 +75,9 @@ export default function SandboxScheduleShell({
     const [exportOpen, setExportOpen] = useState(false);
     /** 'clearShifts' | 'resetSetup' | null */
     const [confirmKind, setConfirmKind] = useState(null);
+    const [showRuleModes, setShowRuleModes] = useState(false);
+    const [draftRuleModes, setDraftRuleModes] = useState(() => getDefaultRuleModes());
+    const [pendingGenerate, setPendingGenerate] = useState(false);
 
     const runExport = (format) => {
         setExportOpen(false);
@@ -210,15 +215,7 @@ export default function SandboxScheduleShell({
         rosterSetup: schedule?.rosterSetup || null,
     }), [staff, schedule?.startDate, schedule?.endDate, schedule?.rosterSetup, assignments, holidays, shiftTypes]);
 
-    const handleGenerate = () => {
-        if (!staff.length) {
-            setToast('Add or import staff first.');
-            return;
-        }
-        if (generatableCount <= 0) {
-            setToast('No empty cover slots left to fill.');
-            return;
-        }
+    const runGenerate = (modes) => {
         setGenerating(true);
         try {
             const before = assignments.length;
@@ -231,6 +228,8 @@ export default function SandboxScheduleShell({
                 holidays,
                 rosterSetup: schedule?.rosterSetup || null,
                 replace: false,
+                settings: schedule?.settings || null,
+                ruleModes: modes || schedule?.ruleModes || null,
             });
             const added = Math.max(0, next.length - before);
             patch({ assignments: next });
@@ -239,6 +238,40 @@ export default function SandboxScheduleShell({
                 : 'No new cover shifts to fill.');
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleGenerate = () => {
+        if (!staff.length) {
+            setToast('Add or import staff first.');
+            return;
+        }
+        if (generatableCount <= 0) {
+            setToast('No empty cover slots left to fill.');
+            return;
+        }
+        if (!schedule?.ruleModes) {
+            setDraftRuleModes(getDefaultRuleModes());
+            setPendingGenerate(true);
+            setShowRuleModes(true);
+            return;
+        }
+        runGenerate(schedule.ruleModes);
+    };
+
+    const openRuleModes = () => {
+        setDraftRuleModes(normalizeRuleModes(schedule?.ruleModes || getDefaultRuleModes()));
+        setPendingGenerate(false);
+        setShowRuleModes(true);
+    };
+
+    const saveRuleModes = () => {
+        const modes = normalizeRuleModes(draftRuleModes);
+        patch({ ruleModes: modes });
+        setShowRuleModes(false);
+        if (pendingGenerate) {
+            setPendingGenerate(false);
+            runGenerate(modes);
         }
     };
 
@@ -285,6 +318,14 @@ export default function SandboxScheduleShell({
                             className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold disabled:opacity-50 bg-white"
                         >
                             {generating ? 'Generating…' : `Auto-generate (${generatableCount})`}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openRuleModes}
+                            className="h-11 px-4 rounded-xl border text-sm font-bold text-ghs-muted bg-white"
+                            title="Flexible vs Hardened guidelines"
+                        >
+                            Rule flexibility
                         </button>
                         <button
                             type="button"
@@ -482,6 +523,45 @@ export default function SandboxScheduleShell({
                 />
             )}
 
+            {showRuleModes && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl">
+                    <div className="w-full max-w-lg bg-white rounded-[28px] border border-slate-100 shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+                            <h2 className="text-lg font-extrabold text-ghs-deep">
+                                {pendingGenerate ? 'Before you generate' : 'Rule flexibility'}
+                            </h2>
+                            <p className="text-xs font-medium text-ghs-muted mt-1">
+                                {pendingGenerate
+                                    ? 'Pick which on-ground guidelines stay Flexible (warn) vs Hardened (enforce). You can change this later.'
+                                    : 'Change Flexible vs Hardened for this roster.'}
+                            </p>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-6">
+                            <RuleModesPanel modes={draftRuleModes} onChange={setDraftRuleModes} title="" subtitle="" />
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowRuleModes(false);
+                                    setPendingGenerate(false);
+                                }}
+                                className="flex-1 h-11 rounded-xl border text-sm font-bold text-ghs-muted"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveRuleModes}
+                                className="flex-1 h-11 rounded-xl bg-ghs-teal text-white text-sm font-bold"
+                            >
+                                {pendingGenerate ? 'Save & generate' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showImport && (
                 <ImportStaffModal
                     mode={mode}
@@ -517,6 +597,9 @@ export default function SandboxScheduleShell({
                         }
                         if (data.rosterSetup) {
                             datePatch.rosterSetup = data.rosterSetup;
+                        }
+                        if (data.ruleModes) {
+                            datePatch.ruleModes = normalizeRuleModes(data.ruleModes);
                         }
                         patch({
                             staff: mergedStaff,

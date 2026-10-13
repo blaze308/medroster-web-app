@@ -11,14 +11,14 @@ const RULE_GROUPS = [
         ],
     },
     {
-        title: 'Ghana guidelines (warnings only)',
+        title: 'Ghana guidelines (Flexible or Hardened)',
         items: [
-            'Prefer at least one senior or in-charge on Morning, Afternoon, and Night — missing coverage warns, never blocks.',
+            'Prefer at least one senior or in-charge on Morning, Afternoon, and Night.',
             'SOD counts toward day-side senior presence.',
             'Labour Act guideline: ~40h/week; hospital target defaults to 48h for Ghana practice.',
             'Labour Act §41: aim for ≥12h rest between shifts.',
             'Labour Act §42: aim for 48h contiguous rest in a 7-day window.',
-            'Shortages happen — generate and save still work without seniors.',
+            'At setup (or in settings) choose Flexible (warn only) or Hardened (enforce) for each guideline.',
         ],
     },
     {
@@ -50,7 +50,7 @@ export default function RulesModal({ onClose }) {
                     <div>
                         <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">Rules</h2>
                         <p className="text-sm font-medium text-synclly-muted mt-1">
-                            Hard personal restrictions vs Ghana roster guidelines (warn only).
+                            Hard personal restrictions vs Ghana guidelines you can set Flexible or Hardened at setup.
                         </p>
                     </div>
                     <button

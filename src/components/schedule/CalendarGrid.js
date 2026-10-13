@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { isStaffOnLeave, classifyStaffType } from '../../lib/staff-utils';
+import { isStaffOnLeave, isStaffOnLeaveForRoster, classifyStaffType } from '../../lib/staff-utils';
 import { preferredSourceCode } from '../../lib/roster-setup';
 import { displayCodeForAssignment } from '../../lib/roster-export-data';
 
@@ -98,9 +98,17 @@ export default function CalendarGrid({
         return { counts, shiftNames: [...shiftNames].slice(0, 6) };
     }, [assignments, legend]);
 
-    // Split staff: regular first, rotation at the bottom
-    const regularStaff = useMemo(() => staff.filter((s) => !s.isRotation), [staff]);
-    const rotationStaff = useMemo(() => staff.filter((s) => s.isRotation), [staff]);
+    // On-duty first (regular, then rotation); full-cycle leave staff at the bottom
+    const { regularStaff, rotationStaff, leaveStaff } = useMemo(() => {
+        const leave = staff.filter((s) => isStaffOnLeaveForRoster(s, startDate, endDate));
+        const leaveIds = new Set(leave.map((s) => String(s._id)));
+        const onDuty = staff.filter((s) => !leaveIds.has(String(s._id)));
+        return {
+            regularStaff: onDuty.filter((s) => !s.isRotation),
+            rotationStaff: onDuty.filter((s) => s.isRotation),
+            leaveStaff: leave,
+        };
+    }, [staff, startDate, endDate]);
 
     if (staff.length === 0) {
         return (
@@ -204,8 +212,6 @@ export default function CalendarGrid({
         );
     });
 
-    const allStaffOrdered = [...regularStaff, ...rotationStaff];
-
     return (
         <div className="bg-white rounded-[32px] border border-slate-100 shadow-synclly overflow-hidden">
             <div className="overflow-x-auto">
@@ -254,6 +260,21 @@ export default function CalendarGrid({
                                     </td>
                                 </tr>
                                 {renderStaffRows(rotationStaff, regularStaff.length + 1)}
+                            </>
+                        )}
+
+                        {/* Leave block — blank spacer then label, keeps duty rows compact */}
+                        {leaveStaff.length > 0 && (
+                            <>
+                                <tr aria-hidden="true">
+                                    <td colSpan={days.length + 2} className="h-3 bg-white border-0 p-0" />
+                                </tr>
+                                <tr>
+                                    <td colSpan={days.length + 2} className="px-4 py-2 bg-slate-100 border-t border-slate-200">
+                                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">On leave</span>
+                                    </td>
+                                </tr>
+                                {renderStaffRows(leaveStaff, regularStaff.length + rotationStaff.length + 1)}
                             </>
                         )}
 

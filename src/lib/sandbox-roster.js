@@ -2,6 +2,7 @@ import { DEFAULT_SHIFT_TYPES, getDefaultHospitalSettings } from './ghana-data';
 import { classifyStaffType, isStaffOnLeave } from './staff-utils';
 import { validateRoleShiftCompatibility, validateWorkRestriction } from './validation';
 import { preferredSourceCode } from './roster-setup';
+import { isRuleHard, normalizeRuleModes } from './rule-modes';
 
 /** Shift types with ids for ShiftPicker / local assign. */
 export function sandboxShiftTypes() {
@@ -221,6 +222,8 @@ export function generateSandboxAssignments({
     holidays = [],
     rosterSetup = null,
     replace = false,
+    settings = null,
+    ruleModes = null,
 }) {
     const base = replace ? [] : (existing || []).map((a) => ({ ...a }));
     const { slots } = scanGeneratableSlots({
@@ -233,9 +236,21 @@ export function generateSandboxAssignments({
     });
     if (!slots.length) return base;
 
+    const resolvedSettings = {
+        ...(settings || sandboxSettings()),
+        ruleModes: normalizeRuleModes(ruleModes || settings?.ruleModes),
+    };
+    const maxConsecutive = resolvedSettings.maxConsecutiveDays ?? 6;
+    const maxNights = resolvedSettings.maxConsecutiveNights ?? 3;
+    const hardenDays = isRuleHard(resolvedSettings, 'consecutiveDays');
+    const hardenNights = isRuleHard(resolvedSettings, 'consecutiveNights');
+
     const legend = Array.isArray(rosterSetup?.legend) ? rosterSetup.legend : [];
     const next = [...base];
     const counts = new Map(staff.map((s) => [String(s._id), 0]));
+    const consecutiveTracker = new Map(staff.map((s) => [String(s._id), 0]));
+    const consecutiveNightTracker = new Map(staff.map((s) => [String(s._id), 0]));
+    const lastWorkedDate = new Map();
     for (const a of next) {
         const id = String(a.staffId);
         counts.set(id, (counts.get(id) || 0) + 1);
@@ -248,8 +263,19 @@ export function generateSandboxAssignments({
         if (!byDay.has(slot.date)) byDay.set(slot.date, []);
         byDay.get(slot.date).push(slot);
     }
+    const sortedDays = [...byDay.keys()].sort();
 
-    for (const [dk, daySlots] of byDay) {
+    for (const dk of sortedDays) {
+        const daySlots = byDay.get(dk);
+        const day = new Date(`${dk}T00:00:00.000Z`);
+        for (const [sid, last] of lastWorkedDate.entries()) {
+            const diff = (day - last) / (24 * 3600 * 1000);
+            if (diff > 1) {
+                consecutiveTracker.set(sid, 0);
+                consecutiveNightTracker.set(sid, 0);
+            }
+        }
+
         const taken = staffTakenOnDay(next, dk);
         // Prefer Morning first for senior placement
         const ordered = [...daySlots].sort((a, b) => {
@@ -260,12 +286,25 @@ export function generateSandboxAssignments({
 
         for (const slot of ordered) {
             if (dayHasCover(next, dk, slot.shift.name)) continue;
+            const isNight = slot.shift.name === 'Night';
             let candidates = slot.candidates.filter((s) => !taken.has(String(s._id)));
             // Re-check eligibility against live state
             candidates = candidates.filter((s) => canAssignCover(s, `${dk}T00:00:00.000Z`, slot.shift, holidays));
+            if (hardenDays) {
+                candidates = candidates.filter((s) => (consecutiveTracker.get(String(s._id)) || 0) < maxConsecutive);
+            }
+            if (hardenNights && isNight) {
+                candidates = candidates.filter((s) => (consecutiveNightTracker.get(String(s._id)) || 0) < maxNights);
+            }
             if (!candidates.length) continue;
 
-            candidates.sort((a, b) => (counts.get(String(a._id)) || 0) - (counts.get(String(b._id)) || 0));
+            candidates.sort((a, b) => {
+                const soft =
+                    !hardenDays
+                        ? (consecutiveTracker.get(String(a._id)) || 0) - (consecutiveTracker.get(String(b._id)) || 0)
+                        : 0;
+                return soft || (counts.get(String(a._id)) || 0) - (counts.get(String(b._id)) || 0);
+            });
             let pick = candidates[0];
             if (seniors.length) {
                 const seniorPick = candidates.find((s) => seniors.some((x) => String(x._id) === String(s._id)));
@@ -291,6 +330,14 @@ export function generateSandboxAssignments({
             });
             taken.add(sid);
             counts.set(sid, (counts.get(sid) || 0) + 1);
+            const prev = consecutiveTracker.get(sid) || 0;
+            consecutiveTracker.set(sid, prev + 1);
+            if (isNight) {
+                consecutiveNightTracker.set(sid, (consecutiveNightTracker.get(sid) || 0) + 1);
+            } else {
+                consecutiveNightTracker.set(sid, 0);
+            }
+            lastWorkedDate.set(sid, day);
         }
     }
 

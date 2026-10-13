@@ -12,6 +12,8 @@ const TYPE_LABEL = {
     daily_rest: 'Rest',
     weekly_rest: 'Rest',
     off_day_target: 'Off days',
+    consecutive_days: 'Consecutive',
+    consecutive_nights: 'Nights',
 };
 
 function groupIssues(items = []) {
@@ -29,7 +31,9 @@ function groupIssues(items = []) {
             item.type === 'max_hours' ||
             item.type === 'off_day_target' ||
             item.type === 'daily_rest' ||
-            item.type === 'weekly_rest'
+            item.type === 'weekly_rest' ||
+            item.type === 'consecutive_days' ||
+            item.type === 'consecutive_nights'
         ) {
             key = `${item.type}:${item.staffId || item.message}`;
             title = item.staffName ? `${item.staffName} — ${item.message}` : item.message;

@@ -65,6 +65,29 @@ export function isStaffOnLeave(staff, date) {
     });
 }
 
+/**
+ * True when this person should sit in the leave block at the bottom of a roster:
+ * employment status On Leave, or approved leave covers every day of the cycle.
+ */
+export function isStaffOnLeaveForRoster(staff, startDate, endDate) {
+    if (!staff) return false;
+    if ((staff.employmentStatus || 'Active') === 'On Leave') return true;
+    if (!startDate || !endDate) return false;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return false;
+    const cur = new Date(start);
+    let any = false;
+    while (cur <= end) {
+        any = true;
+        if (!isStaffOnLeave(staff, cur)) return false;
+        cur.setDate(cur.getDate() + 1);
+    }
+    return any;
+}
+
 // Lookup a staff member by id (string-compared so it works for both Mongo
 // ObjectId strings and plain string ids).
 export function getStaffById(staffList, staffId) {

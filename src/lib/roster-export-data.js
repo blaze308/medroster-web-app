@@ -2,6 +2,7 @@
 // Prefer ward file codes (XM, P, …) from assignments / rosterSetup.legend.
 
 import { formatLegendMeaning, preferredSourceCode } from './roster-setup';
+import { isStaffOnLeaveForRoster } from './staff-utils';
 
 export const DAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -208,8 +209,11 @@ export function buildRosterExportModel({ schedule, hospital, ward, staff, assign
         if (ra !== rb) return ra - rb;
         return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
     });
-    const regularStaff = sortedStaff.filter((s) => !s.isRotation);
-    const rotationStaff = sortedStaff.filter((s) => s.isRotation);
+    const leaveStaff = sortedStaff.filter((s) => isStaffOnLeaveForRoster(s, schedule.startDate, schedule.endDate));
+    const leaveIds = new Set(leaveStaff.map((s) => String(s._id)));
+    const onDutyStaff = sortedStaff.filter((s) => !leaveIds.has(String(s._id)));
+    const regularStaff = onDutyStaff.filter((s) => !s.isRotation);
+    const rotationStaff = onDutyStaff.filter((s) => s.isRotation);
 
     const usedCodes = new Set();
 
@@ -236,20 +240,22 @@ export function buildRosterExportModel({ schedule, hospital, ward, staff, assign
         return 'O';
     }
 
-    function buildStaffRows(list, startNo, isRotation = false) {
+    function buildStaffRows(list, startNo, { isRotation = false, isLeave = false } = {}) {
         return list.map((s, idx) => ({
             no: startNo + idx,
             name: `${s.firstName || ''} ${s.lastName || ''}`.trim(),
             rank: getRankAbbr(s.rank || s.category),
             cells: days.map((d) => cellFor(s, d)),
             isRotation,
+            isLeave,
             _staff: s,
         }));
     }
 
     const staffRows = [
-        ...buildStaffRows(regularStaff, 1, false),
-        ...buildStaffRows(rotationStaff, regularStaff.length + 1, true),
+        ...buildStaffRows(regularStaff, 1, { isRotation: false }),
+        ...buildStaffRows(rotationStaff, regularStaff.length + 1, { isRotation: true }),
+        ...buildStaffRows(leaveStaff, regularStaff.length + rotationStaff.length + 1, { isLeave: true }),
     ];
 
     const shiftCodesToCount = ['Morning', 'Afternoon', 'Night', 'SOD', 'Office'];
@@ -285,6 +291,7 @@ export function buildRosterExportModel({ schedule, hospital, ward, staff, assign
         holidayFlags,
         regularCount: regularStaff.length,
         rotationCount: rotationStaff.length,
+        leaveCount: leaveStaff.length,
         staffRows,
         summaryRows,
         legend,

@@ -1,6 +1,8 @@
 // Ghana healthcare reference data — used across UI templates, validators, and seed flows.
 // Compiled from Ghana Health Service, Korle Bu, Komfo Anokye, GARH, and NMC sources.
 
+import { getDefaultRuleModes } from './rule-modes';
+
 // Hospital types per Ghana Health Service standards
 export const HOSPITAL_TYPES = [
     'Teaching Hospital',
@@ -307,20 +309,20 @@ export function getDefaultWardGuidelines(hospitalSettings = {}) {
 }
 
 // Default validation/scheduling settings for any new hospital.
-// Labour Act 651 hours/rest are soft guidelines; hospital target stays 48h for Ghana practice.
+// Labour Act 651 hours/rest are soft guidelines unless ruleModes harden them.
 export function getDefaultHospitalSettings() {
     return {
         maxConsecutiveDays: 6,
         maxConsecutiveNights: 3,
-        // Prefer ≥1 senior/in-charge on Morning, Afternoon, Night — warning only
+        // Prefer ≥1 senior/in-charge on Morning, Afternoon, Night — severity via ruleModes
         minSeniorStaffPerDay: 1,
         minSeniorStaffPerShift: 1,
         supervisoryCoverageSeverity: 'warning',
         maxHoursPerWeek: 48,
+        ruleModes: getDefaultRuleModes(),
         validationRules: {
             enforceLeaveConflicts: true,
             enforceRoleShiftRestrictions: true,
-            // Supervisory coverage is always soft (warnings), flag kept for compatibility
             enforceSupervisoryCoverage: true,
             warnConsecutiveShifts: true,
         },

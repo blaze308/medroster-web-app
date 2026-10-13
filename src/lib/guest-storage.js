@@ -2,7 +2,7 @@
 
 const GUEST_KEY = 'medroster_guest_schedule';
 const EXPORT_KEY = 'medroster_guest_exports';
-const MAX_EXPORTS = 5;
+const MAX_EXPORTS = 10;
 
 export function getGuestSchedule() {
     if (typeof window === 'undefined') return null;

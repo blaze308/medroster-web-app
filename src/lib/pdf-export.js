@@ -81,9 +81,22 @@ export async function exportRosterPdf({ schedule, hospital, ward, department, st
 
     const body = [];
     let rotationBannerInserted = false;
+    let leaveBannerInserted = false;
 
     for (const row of model.staffRows) {
-        if (row.isRotation && !rotationBannerInserted) {
+        if (row.isLeave && !leaveBannerInserted) {
+            body.push([{
+                content: '',
+                colSpan: model.days.length + 3,
+                styles: { fillColor: [255, 255, 255], minCellHeight: 4 },
+            }]);
+            body.push([{
+                content: 'ON LEAVE',
+                colSpan: model.days.length + 3,
+                styles: { fillColor: [241, 245, 249], fontStyle: 'bold', textColor: [100, 116, 139] },
+            }]);
+            leaveBannerInserted = true;
+        } else if (row.isRotation && !rotationBannerInserted && !row.isLeave) {
             body.push([{
                 content: 'ROTATION',
                 colSpan: model.days.length + 3,

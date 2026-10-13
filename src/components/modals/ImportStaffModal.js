@@ -39,7 +39,9 @@ import {
     normalizeDutyOverlaps,
 } from '../../lib/roster-setup';
 import { mapPreviewToAssignments, sandboxShiftTypes } from '../../lib/sandbox-roster';
+import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
 import ConfirmModal from './ConfirmModal';
+import RuleModesPanel from '../shared/RuleModesPanel';
 
 const FRESH_SETUP_CLEAR_OPTIONS = [
     {
@@ -224,6 +226,7 @@ function UnifiedImportModal({
         offAndHolidayStayOff: true,
         keepGridAsIs: true,
     });
+    const [ruleModes, setRuleModes] = useState(() => getDefaultRuleModes());
 
     useEffect(() => {
         if (!toast) return undefined;
@@ -585,6 +588,7 @@ function UnifiedImportModal({
                     startDate: sortedDates[0] || null,
                     endDate: sortedDates[sortedDates.length - 1] || null,
                     rosterSetup: confirmedSetup || null,
+                    ruleModes: normalizeRuleModes(ruleModes),
                 };
                 setResult(data);
                 setStep('done');
@@ -595,6 +599,16 @@ function UnifiedImportModal({
                 await apiFetch(`/api/hospitals/${hospitalId}/wards/${defaultWardId}`, {
                     method: 'PATCH',
                     body: JSON.stringify({ rosterSetup: confirmedSetup }),
+                });
+            }
+            if (preview?.source === 'roster') {
+                await apiFetch(`/api/hospitals/${hospitalId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        settings: {
+                            ruleModes: normalizeRuleModes(ruleModes),
+                        },
+                    }),
                 });
             }
             let data;
@@ -732,28 +746,31 @@ function UnifiedImportModal({
                 )}
 
                 {step === 'rules' && (
-                    <div className="space-y-3">
-                        {[
-                            { key: 'leaveStayOff', label: 'People on leave stay off', hint: 'Do not put them on shifts for those days.' },
-                            { key: 'offAndHolidayStayOff', label: 'Off and holiday stay off', hint: 'O and H cells are not shifts.' },
-                            { key: 'keepGridAsIs', label: 'Keep the uploaded grid', hint: 'Do not auto-generate over what we just read.' },
-                        ].map((item) => (
-                            <label key={item.key} className="flex items-start gap-3 p-3 rounded-2xl border border-slate-100 bg-ghs-surface">
-                                <input
-                                    type="checkbox"
-                                    className="mt-1 accent-ghs-teal"
-                                    checked={rules[item.key]}
-                                    onChange={(e) => setRules((r) => ({ ...r, [item.key]: e.target.checked }))}
-                                />
-                                <span>
-                                    <span className="block text-sm font-extrabold text-ghs-deep">{item.label}</span>
-                                    <span className="block text-[11px] font-medium text-ghs-muted mt-0.5">{item.hint}</span>
-                                </span>
-                            </label>
-                        ))}
-                        <p className="text-[11px] font-medium text-ghs-muted px-1">
-                            Morning senior cover is always checked on the calendar.
-                        </p>
+                    <div className="space-y-6">
+                        {isHospital && (
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-extrabold text-ghs-deep">Import preferences</h3>
+                                {[
+                                    { key: 'leaveStayOff', label: 'People on leave stay off', hint: 'Do not put them on shifts for those days.' },
+                                    { key: 'offAndHolidayStayOff', label: 'Off and holiday stay off', hint: 'O and H cells are not shifts.' },
+                                    { key: 'keepGridAsIs', label: 'Keep the uploaded grid', hint: 'Do not auto-generate over what we just read.' },
+                                ].map((item) => (
+                                    <label key={item.key} className="flex items-start gap-3 p-3 rounded-2xl border border-slate-100 bg-ghs-surface">
+                                        <input
+                                            type="checkbox"
+                                            className="mt-1 accent-ghs-teal"
+                                            checked={rules[item.key]}
+                                            onChange={(e) => setRules((r) => ({ ...r, [item.key]: e.target.checked }))}
+                                        />
+                                        <span>
+                                            <span className="block text-sm font-extrabold text-ghs-deep">{item.label}</span>
+                                            <span className="block text-[11px] font-medium text-ghs-muted mt-0.5">{item.hint}</span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                        <RuleModesPanel modes={ruleModes} onChange={setRuleModes} />
                     </div>
                 )}
 
@@ -843,24 +860,24 @@ function UnifiedImportModal({
                             disabled={loading || !selectedCount}
                             onClick={() => {
                                 setError('');
-                                if (isHospital && preview?.source === 'roster') setStep('rules');
+                                if (preview?.source === 'roster') setStep('rules');
                                 else confirm();
                             }}
                             className="flex-1 h-12 rounded-2xl bg-ghs-teal text-white font-bold text-sm disabled:opacity-50"
                         >
-                            {isHospital && preview?.source === 'roster'
+                            {preview?.source === 'roster'
                                 ? `Continue with ${selectedCount}`
                                 : (loading ? 'Saving…' : `Confirm ${selectedCount} staff`)}
                         </button>
                     )}
-                    {step === 'rules' && isHospital && (
+                    {step === 'rules' && (
                         <button
                             type="button"
                             disabled={loading || !selectedCount}
                             onClick={confirm}
                             className="flex-1 h-12 rounded-2xl bg-ghs-teal text-white font-bold text-sm disabled:opacity-50"
                         >
-                            {loading ? 'Saving…' : 'Save'}
+                            {loading ? 'Saving…' : (isHospital ? 'Save' : `Confirm ${selectedCount} staff`)}
                         </button>
                     )}
                     {step === 'done' && isHospital && result?.scheduleId && (

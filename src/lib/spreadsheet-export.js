@@ -17,8 +17,13 @@ function buildAoA(model) {
     const rows = [header];
 
     let rotationBanner = false;
+    let leaveBanner = false;
     for (const row of model.staffRows) {
-        if (row.isRotation && !rotationBanner) {
+        if (row.isLeave && !leaveBanner) {
+            rows.push([]); // blank spacer above leave block
+            rows.push(['', 'ON LEAVE', '', ...model.dayHeaders.map(() => '')]);
+            leaveBanner = true;
+        } else if (row.isRotation && !rotationBanner && !row.isLeave) {
             rows.push(['', 'ROTATION', '', ...model.dayHeaders.map(() => '')]);
             rotationBanner = true;
         }
