@@ -112,7 +112,7 @@ export default function CalendarGrid({
 
     if (staff.length === 0) {
         return (
-            <div className="bg-white rounded-[32px] border border-slate-100 p-16 text-center shadow-synclly">
+            <div className="bg-white rounded-2xl md:rounded-[32px] border border-slate-100 p-8 md:p-16 text-center shadow-synclly">
                 <h3 className="text-lg font-extrabold text-ghs-deep mb-1">No staff in this view</h3>
                 <p className="text-ghs-muted font-medium text-sm">
                     Add or import staff to start scheduling.
@@ -129,21 +129,21 @@ export default function CalendarGrid({
         return (
             <tr key={s._id} className="border-t border-slate-50 hover:bg-ghs-surface/40 transition-colors">
                 {/* Row number */}
-                <td className="p-2 text-center text-[11px] font-bold text-ghs-muted sticky left-0 bg-white z-10 w-9 border-r border-slate-50">
+                <td className="p-1.5 md:p-2 text-center text-[10px] md:text-[11px] font-bold text-ghs-muted sticky left-0 bg-white z-10 w-7 md:w-9 border-r border-slate-50">
                     {rowNo}
                 </td>
                 {/* Staff name + rank */}
-                <td className="p-3 sticky left-9 bg-white z-10 border-r border-slate-50 min-w-[220px]">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                <td className="p-2 md:p-3 sticky left-7 md:left-9 bg-white z-10 border-r border-slate-50 min-w-[140px] md:min-w-[220px]">
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <div className={`hidden md:flex w-9 h-9 rounded-xl items-center justify-center font-extrabold text-xs shrink-0 ${
                             s.isRotation ? 'bg-amber-50 text-amber-600' : 'bg-ghs-teal-light text-ghs-teal'
                         }`}>
                             {initials}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-sm font-extrabold text-ghs-deep truncate">{s.firstName} {s.lastName}</p>
+                            <p className="text-xs md:text-sm font-extrabold text-ghs-deep truncate">{s.firstName} {s.lastName}</p>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                <span className="text-[10px] text-ghs-muted font-bold uppercase tracking-wider truncate">
+                                <span className="text-[9px] md:text-[10px] text-ghs-muted font-bold uppercase tracking-wider truncate">
                                     {s.rank || s.category}
                                 </span>
                                 {type === 'pno' && (
@@ -170,28 +170,44 @@ export default function CalendarGrid({
                     const a = assignmentLookup.get(key);
 
                     return (
-                        <td key={i} className="p-1.5">
+                        <td key={i} className="p-1 md:p-1.5">
                             <button
                                 type="button"
                                 disabled={onLeave}
                                 onClick={() => onCellClick(s, d)}
-                                className={`w-full h-12 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${
-                                    isHoliday && !onLeave && !a
+                                className={`w-full h-10 md:h-12 rounded-lg md:rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${
+                                    (isHoliday || a?.shiftType?.name === 'Holiday') && !onLeave && (!a || a.shiftType?.name === 'Holiday')
                                         ? 'bg-ghs-gold-light border-[#E8C97A] hover:border-ghs-gold'
                                         : onLeave
                                         ? 'bg-slate-50 border-slate-100 cursor-not-allowed'
+                                        : a?.shiftType?.name === 'Off'
+                                        ? 'bg-rose-50/60 border-rose-100 hover:border-rose-200'
                                         : a
                                         ? 'bg-white border-slate-100 hover:border-ghs-teal hover:shadow-sm'
                                         : 'bg-ghs-surface border-transparent hover:border-ghs-teal/30 hover:bg-white'
                                 }`}
-                                title={isHoliday ? (holidayLookup.get(dateKey) || 'Holiday') : onLeave ? `On Leave${leaveAbbr ? ` (${leaveAbbr})` : ''}` : undefined}
+                                title={
+                                    a?.shiftType?.name === 'Holiday' || isHoliday
+                                        ? (holidayLookup.get(dateKey) || 'Holiday')
+                                        : onLeave
+                                            ? `On Leave${leaveAbbr ? ` (${leaveAbbr})` : ''}`
+                                            : a?.shiftType?.name === 'Off'
+                                                ? 'Off'
+                                                : undefined
+                                }
                             >
                                 {onLeave ? (
                                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wide">
                                         {leaveAbbr || 'LV'}
                                     </span>
-                                ) : isHoliday && !a ? (
-                                    <span className="text-[10px] font-extrabold text-ghs-gold uppercase tracking-wide">H</span>
+                                ) : a?.shiftType?.name === 'Holiday' || (isHoliday && !a) ? (
+                                    <span className="text-[10px] font-extrabold text-ghs-gold uppercase tracking-wide">
+                                        {a ? (displayCodeForAssignment(a, legend) || 'H') : 'H'}
+                                    </span>
+                                ) : a?.shiftType?.name === 'Off' ? (
+                                    <span className="text-[10px] font-extrabold text-rose-500 uppercase tracking-wide">
+                                        {displayCodeForAssignment(a, legend) || 'O'}
+                                    </span>
                                 ) : a ? (
                                     <span
                                         className={`shift-block ${a.shiftType?.color || ''} text-[10px]! px-2! py-0.5!`}
@@ -213,17 +229,17 @@ export default function CalendarGrid({
     });
 
     return (
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-synclly overflow-hidden">
+        <div className="bg-white rounded-2xl md:rounded-[32px] border border-slate-100 shadow-synclly overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="bg-ghs-surface">
                             {/* No. column */}
-                            <th className="p-3 text-[10px] font-bold text-ghs-muted uppercase tracking-widest sticky left-0 bg-ghs-surface z-10 w-9 text-center border-r border-slate-100">
+                            <th className="p-2 md:p-3 text-[9px] md:text-[10px] font-bold text-ghs-muted uppercase tracking-widest sticky left-0 bg-ghs-surface z-10 w-7 md:w-9 text-center border-r border-slate-100">
                                 No.
                             </th>
                             {/* Staff name column */}
-                            <th className="text-left p-3 text-[10px] font-bold text-ghs-muted uppercase tracking-widest sticky left-9 bg-ghs-surface z-10 min-w-[220px] border-r border-slate-100">
+                            <th className="text-left p-2 md:p-3 text-[9px] md:text-[10px] font-bold text-ghs-muted uppercase tracking-widest sticky left-7 md:left-9 bg-ghs-surface z-10 min-w-[140px] md:min-w-[220px] border-r border-slate-100">
                                 Staff
                             </th>
                             {days.map((d, i) => {
@@ -233,14 +249,14 @@ export default function CalendarGrid({
                                 const isSunday = d.getDay() === 0;
                                 const isSaturday = d.getDay() === 6;
                                 return (
-                                    <th key={i} className={`p-2 min-w-[56px] ${isHoliday ? 'bg-ghs-gold-light' : ''}`}>
+                                    <th key={i} className={`p-1.5 md:p-2 min-w-[40px] md:min-w-[56px] ${isHoliday ? 'bg-ghs-gold-light' : ''}`}>
                                         <div className="flex flex-col items-center gap-0.5">
-                                            <span className={`text-[9px] font-bold uppercase tracking-widest ${isSunday || isSaturday ? 'text-rose-400' : 'text-ghs-muted'}`}>
+                                            <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${isSunday || isSaturday ? 'text-rose-400' : 'text-ghs-muted'}`}>
                                                 {DAY_NAMES[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                                             </span>
-                                            <span className={`text-sm font-extrabold ${isHoliday ? 'text-ghs-gold' : 'text-ghs-deep'}`}>{d.getDate()}</span>
+                                            <span className={`text-xs md:text-sm font-extrabold ${isHoliday ? 'text-ghs-gold' : 'text-ghs-deep'}`}>{d.getDate()}</span>
                                             {isHoliday && (
-                                                <span className="text-[7px] font-extrabold text-ghs-gold uppercase tracking-wide truncate max-w-[48px]" title={holidayName}>H</span>
+                                                <span className="text-[7px] font-extrabold text-ghs-gold uppercase tracking-wide truncate max-w-[36px] md:max-w-[48px]" title={holidayName}>H</span>
                                             )}
                                         </div>
                                     </th>
@@ -281,8 +297,8 @@ export default function CalendarGrid({
                         {/* Coverage summary footer */}
                         {coverageCounts.shiftNames.length > 0 && (
                             <tr className="border-t-2 border-slate-200 bg-ghs-surface">
-                                <td className="p-2 sticky left-0 bg-ghs-surface z-10 border-r border-slate-100" />
-                                <td className="p-3 sticky left-9 bg-ghs-surface z-10 border-r border-slate-100">
+                                <td className="p-1.5 md:p-2 sticky left-0 bg-ghs-surface z-10 border-r border-slate-100 w-7 md:w-9" />
+                                <td className="p-2 md:p-3 sticky left-7 md:left-9 bg-ghs-surface z-10 border-r border-slate-100 min-w-[140px] md:min-w-[220px]">
                                     <div className="space-y-0.5">
                                         {coverageCounts.shiftNames.map((name) => (
                                             <div key={name} className="flex items-center gap-1.5">
@@ -293,7 +309,7 @@ export default function CalendarGrid({
                                                     /^(P|OFC|OFFICE|Office)$/i.test(name) ? 'bg-emerald-50 text-emerald-700' :
                                                     'bg-ghs-teal-light text-ghs-teal'
                                                 }`}>{String(name).slice(0, 3)}</span>
-                                                <span className="text-[10px] text-ghs-muted font-bold">{name}</span>
+                                                <span className="text-[9px] md:text-[10px] text-ghs-muted font-bold truncate">{name}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -302,10 +318,10 @@ export default function CalendarGrid({
                                     const dateKey = d.toISOString().split('T')[0];
                                     const dayCounts = coverageCounts.counts.get(dateKey) || {};
                                     return (
-                                        <td key={i} className="p-1.5 text-center">
+                                        <td key={i} className="p-1 md:p-1.5 text-center min-w-[40px] md:min-w-[56px]">
                                             <div className="space-y-0.5">
                                                 {coverageCounts.shiftNames.map((name) => (
-                                                    <div key={name} className={`text-[11px] font-extrabold rounded px-1 ${
+                                                    <div key={name} className={`text-[10px] md:text-[11px] font-extrabold rounded px-0.5 md:px-1 ${
                                                         dayCounts[name]
                                                             ? /^(M|XM|PM|Morning)$/i.test(name) ? 'text-[#C86A00]' :
                                                               /^(A|XA|PA|Afternoon)$/i.test(name) ? 'text-[#0369A1]' :

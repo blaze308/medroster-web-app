@@ -75,7 +75,10 @@ export default function HospitalDashboard({ hospitalId }) {
                 hospital={hospital}
                 activeTab={activeTab}
                 activeWardId={activeWardId}
-                onTabChange={setActiveTab}
+                onTabChange={(tab) => {
+                    setActiveTab(tab);
+                    setSidebarOpen(false);
+                }}
                 onWardOpen={openWard}
                 isOpen={sidebarOpen}
                 onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -84,7 +87,7 @@ export default function HospitalDashboard({ hospitalId }) {
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-                <div className="md:hidden flex items-center justify-between px-5 py-4 bg-white border-b border-slate-100">
+                <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
                     <button
                         onClick={() => setSidebarOpen(true)}
                         className="w-9 h-9 rounded-xl bg-ghs-surface flex items-center justify-center text-ghs-muted"
@@ -92,18 +95,18 @@ export default function HospitalDashboard({ hospitalId }) {
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     </button>
-                    <span className="text-sm font-extrabold text-ghs-deep">{hospital.name}</span>
-                    <div className="w-9" />
+                    <span className="text-sm font-extrabold text-ghs-deep truncate px-2">{hospital.name}</span>
+                    <div className="w-9 shrink-0" />
                 </div>
 
-                <header className="px-6 md:px-10 pt-8 pb-6">
+                <header className="px-4 md:px-10 pt-6 md:pt-8 pb-4 md:pb-6">
                     <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest">
                         {hospital.type} · {hospital.region}
                     </p>
-                    <h1>{hospital.name}</h1>
+                    <h1 className="truncate">{hospital.name}</h1>
                 </header>
 
-                <main className="px-6 md:px-10 pb-20 flex-1 flex flex-col min-h-0">
+                <main className="px-4 md:px-10 pb-20 flex-1 flex flex-col min-h-0">
                     {activeTab === 'departments' && (
                         <DepartmentsTab hospital={hospital} onChange={fetchHospital} onWardOpen={openWard} canWrite={canWrite} />
                     )}

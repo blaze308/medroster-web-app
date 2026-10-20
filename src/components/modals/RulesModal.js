@@ -46,9 +46,9 @@ export default function RulesModal({ onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="w-full max-w-2xl bg-white rounded-[32px] overflow-hidden shadow-synclly-lg border border-slate-50 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-                <div className="p-8 border-b border-slate-100 flex items-start justify-between gap-6">
+                <div className="p-4 sm:p-6 md:p-8 border-b border-slate-100 flex items-start justify-between gap-4 md:gap-6">
                     <div>
-                        <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">Rules</h2>
+                        <h2 className="text-xl md:text-2xl font-extrabold text-synclly-deep tracking-tight">Rules</h2>
                         <p className="text-sm font-medium text-synclly-muted mt-1">
                             Hard personal restrictions vs Ghana guidelines you can set Flexible or Hardened at setup.
                         </p>
@@ -56,13 +56,13 @@ export default function RulesModal({ onClose }) {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-10 h-10 rounded-xl bg-synclly-surface text-synclly-muted hover:text-synclly-coral"
+                        className="w-10 h-10 shrink-0 rounded-xl bg-synclly-surface text-synclly-muted hover:text-synclly-coral"
                     >
                         x
                     </button>
                 </div>
 
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-5 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 sm:p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-h-[70vh] overflow-y-auto">
                     {RULE_GROUPS.map((group) => (
                         <section key={group.title} className="rounded-2xl bg-synclly-surface border border-slate-100 p-5">
                             <h3 className="text-sm font-extrabold text-synclly-deep mb-3">{group.title}</h3>

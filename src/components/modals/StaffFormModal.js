@@ -188,8 +188,8 @@ export default function StaffFormModal({ hospitalId, departments, wards = [], st
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="w-full max-w-3xl bg-white rounded-[40px] overflow-hidden shadow-synclly-lg border border-slate-50 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 max-h-[90vh] flex flex-col">
-                <div className="px-10 pt-10 pb-4 border-b border-slate-100">
-                    <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight">
+                <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 md:pt-10 pb-4 border-b border-slate-100">
+                    <h2 className="text-xl md:text-2xl font-extrabold text-synclly-deep tracking-tight">
                         {isEdit ? 'Edit Staff Member' : 'Add Staff Member'}
                     </h2>
                     <p className="text-synclly-muted font-medium text-sm mt-1">
@@ -215,9 +215,9 @@ export default function StaffFormModal({ hospitalId, departments, wards = [], st
                 </div>
 
                 <form onSubmit={handleSubmit} className="overflow-y-auto flex-1">
-                    <div className="px-10 py-8 space-y-6">
+                    <div className="px-4 sm:px-6 md:px-10 py-6 md:py-8 space-y-6">
                         {active === 'personal' && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="First Name" required>
                                     <Input value={form.firstName} onChange={(v) => update('firstName', v)} placeholder="Akosua" />
                                 </Field>
@@ -292,7 +292,7 @@ export default function StaffFormModal({ hospitalId, departments, wards = [], st
                                         options={WARD_ROLES}
                                     />
                                 </Field>
-                                <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="sm:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <Toggle label="Only morning" checked={form.workRestriction === 'onlyMorning'} onChange={(checked) => update('workRestriction', checked ? 'onlyMorning' : 'none')} />
                                     <Toggle label="Only afternoon" checked={form.workRestriction === 'onlyAfternoon'} onChange={(checked) => update('workRestriction', checked ? 'onlyAfternoon' : 'none')} />
                                     <Toggle label="Weekday only" checked={form.workRestriction === 'weekdayOnly'} onChange={(checked) => update('workRestriction', checked ? 'weekdayOnly' : 'none')} />
@@ -342,12 +342,12 @@ export default function StaffFormModal({ hospitalId, departments, wards = [], st
                     </div>
 
                     {error && (
-                        <div className="mx-10 bg-rose-50 border border-rose-100 rounded-2xl p-3 text-xs font-bold text-rose-600">
+                        <div className="mx-4 sm:mx-6 md:mx-10 bg-rose-50 border border-rose-100 rounded-2xl p-3 text-xs font-bold text-rose-600">
                             {error}
                         </div>
                     )}
 
-                    <div className="px-10 py-6 border-t border-slate-100 flex justify-between gap-3 sticky bottom-0 bg-white">
+                    <div className="px-4 sm:px-6 md:px-10 py-4 md:py-6 border-t border-slate-100 flex justify-between gap-3 sticky bottom-0 bg-white">
                         <button
                             type="button"
                             onClick={onClose}
@@ -372,7 +372,7 @@ export default function StaffFormModal({ hospitalId, departments, wards = [], st
 
 function Field({ label, required, full, children }) {
     return (
-        <div className={`space-y-2 ${full ? 'col-span-2' : ''}`}>
+        <div className={`space-y-2 ${full ? 'sm:col-span-2' : ''}`}>
             <label className="text-[10px] font-bold text-synclly-muted uppercase tracking-widest ml-1">
                 {label}
                 {required && <span className="text-synclly-coral ml-1">*</span>}

@@ -58,33 +58,33 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-ghs-surface text-ghs-deep overflow-hidden">
+    <div className="min-h-screen bg-ghs-surface text-ghs-deep">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-5 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="MedRoster" className="w-9 h-9 rounded-xl shadow-sm" />
-          <span className="text-lg font-extrabold text-ghs-deep tracking-tight">MedRoster</span>
+      <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 md:px-8 py-4 md:py-5 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <img src="/logo.svg" alt="MedRoster" className="w-9 h-9 rounded-xl shadow-sm shrink-0" />
+          <span className="text-base sm:text-lg font-extrabold text-ghs-deep tracking-tight truncate">MedRoster</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {isLoggedIn ? (
             <>
               <Link href={`/hospital/${hospitalId}`}
-                className="px-5 py-2.5 rounded-xl bg-ghs-teal text-white text-sm font-bold hover:bg-ghs-teal-hover transition-all shadow-sm">
-                My Dashboard
+                className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-ghs-teal text-white text-xs sm:text-sm font-bold hover:bg-ghs-teal-hover transition-all shadow-sm">
+                Dashboard
               </Link>
               <button onClick={handleSignOut}
-                className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-ghs-muted text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
+                className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-white border border-slate-200 text-ghs-muted text-xs sm:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
                 Sign Out
               </button>
             </>
           ) : (
             <>
               <Link href="/auth/signin"
-                className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-ghs-muted text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
+                className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-white border border-slate-200 text-ghs-muted text-xs sm:text-sm font-bold hover:bg-slate-50 transition-all shadow-sm">
                 Sign In
               </Link>
               <Link href="/auth/register"
-                className="px-5 py-2.5 rounded-xl bg-ghs-teal text-white text-sm font-bold hover:bg-ghs-teal-hover transition-all shadow-sm shadow-ghs-teal/20">
+                className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-ghs-teal text-white text-xs sm:text-sm font-bold hover:bg-ghs-teal-hover transition-all shadow-sm shadow-ghs-teal/20">
                 Get Started
               </Link>
             </>
@@ -93,45 +93,45 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <div className="relative pt-16 pb-48 px-8 max-w-7xl mx-auto flex flex-col items-center">
+      <div className="relative overflow-hidden pt-10 sm:pt-16 pb-24 sm:pb-48 px-4 sm:px-8 max-w-7xl mx-auto flex flex-col items-center">
         <div className="absolute top-20 -left-20 w-[600px] h-[600px] bg-ghs-teal/5 rounded-full blur-[120px] -z-10" />
         <div className="absolute top-40 -right-20 w-[500px] h-[500px] bg-ghs-gold/5 rounded-full blur-[100px] -z-10" />
 
-        <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-white border border-slate-100 text-ghs-teal text-[11px] font-extrabold uppercase tracking-widest mb-10 shadow-sm animate-in fade-in slide-in-from-top-10 duration-1000">
-          <span className="w-1.5 h-1.5 rounded-full bg-ghs-teal animate-pulse" />
+        <div className="inline-flex items-center gap-2.5 px-4 sm:px-5 py-2 rounded-full bg-white border border-slate-100 text-ghs-teal text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest mb-8 sm:mb-10 shadow-sm animate-in fade-in slide-in-from-top-10 duration-1000 text-center">
+          <span className="w-1.5 h-1.5 rounded-full bg-ghs-teal animate-pulse shrink-0" />
           Ghana Health Service · Duty Rostering
         </div>
 
-        <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight mb-8 leading-[1.05] text-center max-w-4xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-100 px-4">
+        <h1 className="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tight mb-6 sm:mb-8 leading-[1.05] text-center max-w-4xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-100 px-2 sm:px-4">
           Built for the way <br />
           <span className="text-ghs-teal italic">Ghana hospitals</span> work.
         </h1>
 
-        <p className="text-ghs-muted text-lg md:text-xl max-w-2xl mx-auto mb-16 text-center font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
+        <p className="text-ghs-muted text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-10 sm:mb-16 text-center font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200 px-1">
           MedRoster handles GHS departments, nursing ranks, PIN/AIN licensing, Labour Act leave, and monthly duty rosters — ready for every ward.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-6 w-full sm:w-auto animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
           {isLoggedIn ? (
             <Link href={hospitalId ? `/hospital/${hospitalId}` : '/individual'}
-              className="btn px-10 py-5 text-lg bg-ghs-teal text-white hover:bg-ghs-teal-hover shadow-lg shadow-ghs-teal/20 hover:-translate-y-1 transition-all rounded-2xl font-bold">
+              className="btn px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg bg-ghs-teal text-white hover:bg-ghs-teal-hover shadow-lg shadow-ghs-teal/20 hover:-translate-y-1 transition-all rounded-2xl font-bold">
               Go to Dashboard
             </Link>
           ) : (
             <>
               <Link href="/auth/register"
-                className="btn px-10 py-5 text-lg bg-ghs-teal text-white hover:bg-ghs-teal-hover shadow-lg shadow-ghs-teal/20 hover:-translate-y-1 transition-all rounded-2xl font-bold">
+                className="btn px-8 sm:px-10 py-4 sm:py-5 text-base sm:text-lg bg-ghs-teal text-white hover:bg-ghs-teal-hover shadow-lg shadow-ghs-teal/20 hover:-translate-y-1 transition-all rounded-2xl font-bold">
                 Get started
               </Link>
               <Link href="/guest"
-                className="px-8 py-4 rounded-2xl bg-white border border-slate-100 text-sm font-extrabold text-ghs-muted hover:text-ghs-teal shadow-sm">
+                className="px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-white border border-slate-100 text-sm font-extrabold text-ghs-muted hover:text-ghs-teal shadow-sm text-center">
                 Try guest mode
               </Link>
             </>
           )}
           <button
             onClick={() => setShowRules(true)}
-            className="px-8 py-4 rounded-2xl bg-white border border-slate-100 text-sm font-extrabold text-ghs-muted hover:text-ghs-teal shadow-sm"
+            className="px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-white border border-slate-100 text-sm font-extrabold text-ghs-muted hover:text-ghs-teal shadow-sm"
           >
             View roster rules
           </button>
@@ -149,11 +149,11 @@ export default function LandingPage() {
 
       {/* Hospitals list — only shown when logged in */}
       {isLoggedIn && (
-      <div className="max-w-7xl mx-auto px-8 -mt-24 pb-48 relative z-20">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 -mt-12 sm:-mt-24 pb-24 sm:pb-48 relative z-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 mb-8 md:mb-12">
           <div className="space-y-1">
-            <h2 className="text-3xl font-extrabold tracking-tight">Your Hospital</h2>
-            <p className="text-ghs-muted font-medium">Manage staff, wards, and monthly duty rosters from one dashboard.</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Your Hospital</h2>
+            <p className="text-ghs-muted font-medium text-sm sm:text-base">Manage staff, wards, and monthly duty rosters from one dashboard.</p>
           </div>
           <div className="bg-white border border-slate-100 px-6 py-3 rounded-2xl text-xs font-bold text-ghs-muted shadow-sm flex items-center gap-3">
             <span className="w-1.5 h-1.5 rounded-full bg-ghs-teal" />
@@ -166,12 +166,12 @@ export default function LandingPage() {
             <div className="w-12 h-12 border-4 border-white border-t-ghs-teal rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
             {hospitals.map((h) => (
               <div key={h._id} className="relative group">
                 <Link
                   href={`/hospital/${h._id}`}
-                  className="block glass-panel rounded-[32px] p-8 transition-all hover:-translate-y-2 hover:shadow-synclly-lg"
+                  className="block glass-panel rounded-2xl md:rounded-[32px] p-5 sm:p-8 transition-all hover:-translate-y-2 hover:shadow-synclly-lg"
                 >
                   <div className="flex items-start justify-between mb-10">
                     <div className="w-14 h-14 bg-ghs-surface text-ghs-muted rounded-[20px] flex items-center justify-center text-xl font-extrabold transition-all group-hover:bg-ghs-teal group-hover:text-white border border-slate-50 group-hover:border-transparent group-hover:shadow-lg group-hover:shadow-ghs-teal/20">
@@ -227,7 +227,7 @@ export default function LandingPage() {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-white rounded-[32px] overflow-hidden shadow-synclly-lg border border-slate-50 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-            <div className="p-10">
+            <div className="p-6 sm:p-10">
               <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 mb-6">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />

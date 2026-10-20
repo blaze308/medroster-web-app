@@ -90,27 +90,27 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
                             : 'All clinical and support personnel.'}
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full md:w-auto">
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name or rank..."
-                        className="h-10 w-64 bg-white border border-slate-200 rounded-xl px-4 text-sm font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
+                        className="h-10 w-full sm:w-64 bg-white border border-slate-200 rounded-xl px-4 text-sm font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
                     />
                     {canWrite && (
-                        <>
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setShowImport(true)}
-                                className="btn btn-secondary text-xs py-2 leading-tight text-left"
+                                className="btn btn-secondary text-xs py-2 leading-tight text-left flex-1 sm:flex-none"
                             >
                                 <span className="block">Import staff data</span>
                                 <span className="block text-[9px] font-medium opacity-70 normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
                             </button>
-                            <button onClick={() => setShowAdd(true)} className="btn btn-primary text-xs py-2">
+                            <button onClick={() => setShowAdd(true)} className="btn btn-primary text-xs py-2 flex-1 sm:flex-none">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                 Add Staff
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>

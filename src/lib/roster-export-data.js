@@ -227,14 +227,28 @@ export function buildRosterExportModel({ schedule, hospital, ward, staff, assign
             usedCodes.add('LV');
             return 'LV';
         }
-        if (isH && !a) {
-            usedCodes.add('H');
-            return 'H';
-        }
         if (a) {
             const code = displayCodeForAssignment(a, legendEntries);
-            usedCodes.add(code);
-            return code;
+            const name = a.shiftType?.name || '';
+            // Prefer the file letter (H vs O). Rest markers must not fall through to blank→O.
+            if (code) {
+                usedCodes.add(code);
+                return code;
+            }
+            if (name === 'Holiday') {
+                usedCodes.add('H');
+                return 'H';
+            }
+            if (name === 'Off') {
+                usedCodes.add('O');
+                return 'O';
+            }
+            usedCodes.add(code || name);
+            return code || name;
+        }
+        if (isH) {
+            usedCodes.add('H');
+            return 'H';
         }
         usedCodes.add('O');
         return 'O';

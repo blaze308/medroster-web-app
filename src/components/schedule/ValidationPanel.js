@@ -93,14 +93,14 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
     const hasWarningsOnly = isValid && warningCount > 0;
 
     return (
-        <div className="fixed bottom-6 right-6 z-40 w-[360px] max-w-[calc(100vw-3rem)]">
-            <div className={`bg-white rounded-[24px] border shadow-synclly-lg overflow-hidden transition-all ${
+        <div className="fixed inset-x-0 bottom-0 z-40 w-full md:inset-x-auto md:bottom-6 md:right-6 md:w-[360px] md:max-w-[calc(100vw-3rem)]">
+            <div className={`bg-white rounded-t-2xl md:rounded-[24px] border border-b-0 md:border-b shadow-synclly-lg overflow-hidden transition-all ${
                 !isValid ? 'border-rose-100' : hasWarningsOnly ? 'border-amber-100' : 'border-emerald-100'
             }`}>
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    className="w-full p-5 flex items-center justify-between gap-3 hover:bg-slate-50/50"
+                    className="w-full p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/50"
                 >
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -141,9 +141,9 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
                 </button>
 
                 {open && (errorGroups.length > 0 || warningGroups.length > 0) && (
-                    <div className="border-t border-slate-100 max-h-72 overflow-y-auto">
+                    <div className="border-t border-slate-100 max-h-[40vh] md:max-h-72 overflow-y-auto">
                         {errorGroups.map((g) => (
-                            <div key={`e${g.key}`} className="px-5 py-3 border-b border-slate-50 last:border-0">
+                            <div key={`e${g.key}`} className="px-4 md:px-5 py-3 border-b border-slate-50 last:border-0">
                                 <div className="flex items-start gap-2">
                                     <span className="text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100 shrink-0 mt-0.5">
                                         {TYPE_LABEL[g.type] || g.type}
@@ -156,7 +156,7 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
                             </div>
                         ))}
                         {warningGroups.map((g) => (
-                            <div key={`w${g.key}`} className="px-5 py-3 border-b border-slate-50 last:border-0">
+                            <div key={`w${g.key}`} className="px-4 md:px-5 py-3 border-b border-slate-50 last:border-0">
                                 <div className="flex items-start gap-2">
                                     <span className="text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 shrink-0 mt-0.5">
                                         {TYPE_LABEL[g.type] || g.type}

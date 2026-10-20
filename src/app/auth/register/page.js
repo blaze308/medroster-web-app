@@ -224,7 +224,7 @@ export default function RegisterPage() {
                                     <input autoFocus required className={inputCls} placeholder="e.g. Korle Bu Teaching Hospital"
                                         value={hospitalName} onChange={(e) => setHospitalName(e.target.value)} />
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">Type</label>
                                         <select value={hospitalType} onChange={(e) => setHospitalType(e.target.value)}

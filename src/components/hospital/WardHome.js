@@ -222,7 +222,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by name or rank..."
-                    className="h-10 w-64 bg-white border border-slate-200 rounded-xl px-4 text-sm font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
+                    className="h-10 w-full sm:w-64 bg-white border border-slate-200 rounded-xl px-4 text-sm font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
                 />
                 {wardStaff.length > 0 && (
                     <div className="flex items-center gap-0.5 h-10 p-1 rounded-full bg-white border border-slate-200 shadow-sm">

@@ -115,33 +115,33 @@ export default function IndividualDashboard() {
 
     return (
         <div className="min-h-screen bg-ghs-surface">
-            <nav className="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto">
-                <Link href="/" className="font-extrabold text-ghs-deep">MedRoster</Link>
-                <div className="flex items-center gap-3 text-sm">
-                    <span className="text-ghs-muted">{user?.email || user?.phoneNumber}</span>
-                    <button type="button" onClick={() => signOut(auth)} className="font-bold text-ghs-teal">Sign out</button>
+            <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 max-w-5xl mx-auto">
+                <Link href="/" className="font-extrabold text-ghs-deep shrink-0">MedRoster</Link>
+                <div className="flex items-center gap-2 sm:gap-3 text-sm min-w-0">
+                    <span className="text-ghs-muted truncate max-w-[28vw] sm:max-w-xs md:max-w-none">{user?.email || user?.phoneNumber}</span>
+                    <button type="button" onClick={() => signOut(auth)} className="font-bold text-ghs-teal shrink-0">Sign out</button>
                 </div>
             </nav>
 
-            <main className="max-w-5xl mx-auto px-6 py-8">
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-                    <div>
-                        <h1 className="text-2xl font-extrabold text-ghs-deep">Individual workspace</h1>
+            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-start justify-between gap-4 mb-8">
+                    <div className="min-w-0">
+                        <h1 className="text-xl md:text-2xl font-extrabold text-ghs-deep">Individual workspace</h1>
                         <p className="text-sm text-ghs-muted mt-1">Monthly schedules · calendar &amp; auto-generate · up to 50 staff · unlimited PDF · saved to your account</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
                             onClick={() => setShowImport(true)}
-                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left"
+                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left flex-1 sm:flex-none"
                         >
                             <span className="block">Import staff data</span>
                             <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
                         </button>
-                        <button type="button" onClick={createSchedule} disabled={creating} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50">
+                        <button type="button" onClick={createSchedule} disabled={creating} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50 flex-1 sm:flex-none">
                             New month schedule
                         </button>
-                        <button type="button" onClick={() => setShowUpgrade(true)} className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold">
+                        <button type="button" onClick={() => setShowUpgrade(true)} className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold w-full sm:w-auto">
                             Upgrade to hospital
                         </button>
                     </div>
@@ -151,16 +151,16 @@ export default function IndividualDashboard() {
 
                 <div className="grid gap-4">
                     {schedules.map((s) => (
-                        <div key={s._id} className="bg-white rounded-2xl border border-slate-100 p-5 flex items-center justify-between">
-                            <div>
-                                <div className="font-extrabold text-ghs-deep">{s.name}</div>
+                        <div key={s._id} className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="font-extrabold text-ghs-deep truncate">{s.name}</div>
                                 <div className="text-xs text-ghs-muted mt-1">{s.startDate} → {s.endDate} · {(s.staff || []).length} staff</div>
                             </div>
-                            <Link href={`/individual/${s._id}`} className="text-sm font-bold text-ghs-teal">Open →</Link>
+                            <Link href={`/individual/${s._id}`} className="text-sm font-bold text-ghs-teal shrink-0">Open →</Link>
                         </div>
                     ))}
                     {schedules.length === 0 && (
-                        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center text-ghs-muted text-sm">
+                        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 sm:p-10 text-center text-ghs-muted text-sm">
                             No schedules yet. Create a month or import staff first.
                         </div>
                     )}

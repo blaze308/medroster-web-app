@@ -30,9 +30,13 @@ const CODE_TO_SHIFT = {
     PM: 'Morning',
     PA: 'Afternoon',
     PN: 'Night',
+    O: 'Off',
+    H: 'Holiday',
 };
 
 const ON_DUTY_NAMES = ['Morning', 'Afternoon', 'Night', 'SOD', 'Office'];
+/** Rest markers kept as assignments so export/calendar can show O vs H distinctly. */
+const REST_NAMES = ['Off', 'Holiday'];
 
 const COVER_NAMES = ['Morning', 'Afternoon', 'Night'];
 
@@ -144,6 +148,21 @@ function scanGeneratableSlots({
  * Map imported roster preview rows (with cells/assignments) into calendar assignments.
  * Staff rows must already have stable `_id`s.
  */
+function restMarkerShift(meaning, code) {
+    const name = meaning === 'Holiday' || String(code || '').toUpperCase() === 'H'
+        ? 'Holiday'
+        : 'Off';
+    const sourceCode = String(code || '').trim().toUpperCase()
+        || (name === 'Holiday' ? 'H' : 'O');
+    return {
+        name,
+        sourceCode,
+        color: name === 'Holiday' ? 'holiday' : 'off',
+        startTime: '',
+        endTime: '',
+    };
+}
+
 export function mapPreviewToAssignments(staffRows, shiftTypes = sandboxShiftTypes()) {
     const assignments = [];
     for (const row of staffRows || []) {
@@ -153,8 +172,10 @@ export function mapPreviewToAssignments(staffRows, shiftTypes = sandboxShiftType
         const fromCells = (row.cells || [])
             .filter((c) => (
                 ON_DUTY_NAMES.includes(c.meaning)
+                || REST_NAMES.includes(c.meaning)
                 || CODE_TO_SHIFT[String(c.code || '').toUpperCase()]
                 || ON_DUTY_NAMES.includes(c.code)
+                || REST_NAMES.includes(c.code)
             ))
             .map((c) => ({
                 date: c.date,
@@ -169,14 +190,44 @@ export function mapPreviewToAssignments(staffRows, shiftTypes = sandboxShiftType
         const list = fromAssignments.length ? fromAssignments : fromCells;
         for (const a of list) {
             if (!a?.date) continue;
+            const codeUpper = String(a.code || '').trim().toUpperCase();
+            const isRest = REST_NAMES.includes(a.meaning)
+                || a.meaning === 'Off'
+                || a.meaning === 'Holiday'
+                || codeUpper === 'O'
+                || codeUpper === 'H';
+            const dk = dateKey(a.date);
+
+            if (isRest && !ON_DUTY_NAMES.includes(a.meaning) && !a.sod) {
+                const rest = restMarkerShift(a.meaning, a.code);
+                assignments.push({
+                    _id: `a_${staffId}_${dk}`,
+                    staffId,
+                    date: `${dk}T00:00:00.000Z`,
+                    sourceCode: rest.sourceCode,
+                    unit: a.unit || '',
+                    dutyOverlaps: [],
+                    officeDays: [],
+                    outsideMorning: false,
+                    shiftType: {
+                        name: rest.name,
+                        color: rest.color,
+                        startTime: '',
+                        endTime: '',
+                        dutyOverlaps: [],
+                        outsideMorning: false,
+                    },
+                });
+                continue;
+            }
+
             const byMeaning = ON_DUTY_NAMES.includes(a.meaning)
                 ? (shiftTypes || []).find((st) => st.name === a.meaning)
                 : null;
             const shift = a.sod
                 ? shiftTypeFromCode(shiftTypes, 'SOD')
                 : (byMeaning || shiftTypeFromCode(shiftTypes, a.code));
-            if (!shift) continue;
-            const dk = dateKey(a.date);
+            if (!shift || REST_NAMES.includes(shift.name)) continue;
             const dutyOverlaps = Array.isArray(a.dutyOverlaps) && a.dutyOverlaps.length
                 ? a.dutyOverlaps
                 : [shift.name === 'Afternoon' ? 'Afternoon' : shift.name === 'Night' ? 'Night' : 'Morning'];

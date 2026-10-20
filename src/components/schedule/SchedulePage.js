@@ -175,23 +175,27 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
     return (
         <div className="min-h-screen bg-ghs-surface text-ghs-deep">
             <header className="bg-white border-b border-slate-100 sticky top-0 z-30">
-                <div className="px-6 md:px-10 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-4">
+                <div className="px-4 md:px-10 py-3 md:py-4 flex flex-col gap-3 md:gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
                         <button
                             onClick={() => router.push(`/hospital/${hospitalId}`)}
-                            className="w-10 h-10 rounded-xl bg-ghs-surface text-ghs-muted hover:text-ghs-teal flex items-center justify-center transition-all"
+                            className="w-10 h-10 shrink-0 rounded-xl bg-ghs-surface text-ghs-muted hover:text-ghs-teal flex items-center justify-center transition-all"
                             aria-label="Back"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M15 18l-6-6 6-6" />
                             </svg>
                         </button>
-                        <div>
-                            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest">{hospital.name}</p>
-                            <h1 className="text-xl font-extrabold tracking-tight">
-                                {schedule.name || 'Ward Schedule'} · {formatRange(schedule.startDate, schedule.endDate)}
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest truncate">{hospital.name}</p>
+                            <h1 className="text-base md:text-xl font-extrabold tracking-tight truncate">
+                                <span className="block sm:inline">{schedule.name || 'Ward Schedule'}</span>
+                                <span className="hidden sm:inline"> · </span>
+                                <span className="block sm:inline text-sm md:text-xl font-bold md:font-extrabold text-ghs-muted md:text-ghs-deep">
+                                    {formatRange(schedule.startDate, schedule.endDate)}
+                                </span>
                             </h1>
-                            <p className="text-xs font-bold text-ghs-muted mt-1">
+                            <p className="text-xs font-bold text-ghs-muted mt-1 truncate">
                                 {department?.name || 'Department'} / {ward?.name || 'Ward'}
                             </p>
                         </div>
@@ -287,14 +291,14 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                         )}
                     </div>
                 </div>
-                <div className="px-6 md:px-10 pb-3">
-                    <div className="inline-flex items-center gap-2 h-8 px-3 rounded-lg bg-ghs-surface text-[11px] font-bold text-ghs-muted">
+                <div className="px-4 md:px-10 pb-3">
+                    <div className="inline-flex items-center gap-2 min-h-8 px-3 py-1.5 rounded-lg bg-ghs-surface text-[10px] md:text-[11px] font-bold text-ghs-muted leading-snug">
                         Ward-specific roster: staff cannot be interchanged across wards.
                     </div>
                 </div>
             </header>
 
-            <main className="px-6 md:px-10 py-6">
+            <main className="px-4 md:px-10 py-4 md:py-6 pb-28 md:pb-6">
                 <CalendarGrid
                     startDate={schedule.startDate}
                     endDate={schedule.endDate}
@@ -330,7 +334,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
 
             {statusToast && (
                 <div
-                    className={`fixed top-24 right-6 z-50 max-w-md px-5 py-3 rounded-2xl shadow-synclly-lg border text-sm font-bold animate-in slide-in-from-top-4 duration-300 ${
+                    className={`fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-20 z-50 md:max-w-md px-4 md:px-5 py-3 rounded-2xl shadow-synclly-lg border text-sm font-bold animate-in slide-in-from-top-4 duration-300 ${
                         statusToast.kind === 'error'
                             ? 'bg-rose-50 border-rose-200 text-rose-700'
                             : statusToast.kind === 'warning'

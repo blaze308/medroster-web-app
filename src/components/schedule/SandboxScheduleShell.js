@@ -115,7 +115,7 @@ export default function SandboxScheduleShell({
 
     const addStaff = () => {
         if (!newFirst.trim() || !newLast.trim()) return;
-        if (staff.length >= maxStaff) {
+        if (Number.isFinite(maxStaff) && staff.length >= maxStaff) {
             setToast(`Limited to ${maxStaff} staff. Register or upgrade for more.`);
             return;
         }
@@ -284,18 +284,20 @@ export default function SandboxScheduleShell({
         <div className="min-h-screen bg-ghs-surface">
             {banner}
 
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-                    <div>
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 md:py-8">
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 mb-6">
+                    <div className="min-w-0">
                         <Link href={backHref} className="text-xs font-bold text-ghs-muted hover:text-ghs-teal">
                             {backLabel}
                         </Link>
-                        <h1 className="text-2xl font-extrabold text-ghs-deep mt-2">{title}</h1>
+                        <h1 className="text-xl md:text-2xl font-extrabold text-ghs-deep mt-2 truncate">{title}</h1>
                         {subtitle ? <p className="text-sm text-ghs-muted mt-1">{subtitle}</p> : null}
                         <p className="text-xs text-ghs-muted mt-1">
                             {formatRange(schedule?.startDate, schedule?.endDate)}
                             {daysInRange ? ` · ${daysInRange} days` : ''}
-                            {` · ${staff.length}/${maxStaff} staff`}
+                            {Number.isFinite(maxStaff)
+                                ? ` · ${staff.length}/${maxStaff} staff`
+                                : ` · ${staff.length} staff`}
                             {assignments.length ? ` · ${assignments.length} shifts` : ''}
                         </p>
                     </div>
@@ -453,23 +455,23 @@ export default function SandboxScheduleShell({
 
                 <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6">
                     <h2 className="font-extrabold text-ghs-deep mb-3">Staff</h2>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        <input className="h-11 rounded-xl border px-3 text-sm" placeholder="First name" value={newFirst} onChange={(e) => setNewFirst(e.target.value)} />
-                        <input className="h-11 rounded-xl border px-3 text-sm" placeholder="Last name" value={newLast} onChange={(e) => setNewLast(e.target.value)} />
-                        <input className="h-11 rounded-xl border px-3 text-sm" placeholder="Rank" value={newRank} onChange={(e) => setNewRank(e.target.value)} />
-                        <button type="button" onClick={addStaff} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold">Add</button>
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
+                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="First name" value={newFirst} onChange={(e) => setNewFirst(e.target.value)} />
+                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="Last name" value={newLast} onChange={(e) => setNewLast(e.target.value)} />
+                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="Rank" value={newRank} onChange={(e) => setNewRank(e.target.value)} />
+                        <button type="button" onClick={addStaff} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold shrink-0">Add</button>
                     </div>
                     <ul className="divide-y max-h-48 overflow-y-auto">
                         {staff.map((s) => (
-                            <li key={s._id} className="py-2.5 flex items-center justify-between text-sm">
-                                <span className="font-semibold text-ghs-deep">
+                            <li key={s._id} className="py-2.5 flex items-center justify-between gap-3 text-sm">
+                                <span className="font-semibold text-ghs-deep min-w-0 truncate">
                                     {s.firstName} {s.lastName}{' '}
                                     <span className="text-ghs-muted font-medium">· {s.rank}</span>
                                     {s.wardRole && s.wardRole !== 'regular' ? (
                                         <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-ghs-teal">{s.wardRole}</span>
                                     ) : null}
                                 </span>
-                                <button type="button" onClick={() => removeStaff(s._id)} className="text-xs font-bold text-rose-500">Remove</button>
+                                <button type="button" onClick={() => removeStaff(s._id)} className="text-xs font-bold text-rose-500 shrink-0">Remove</button>
                             </li>
                         ))}
                         {staff.length === 0 && (
@@ -576,7 +578,9 @@ export default function SandboxScheduleShell({
                     onClose={() => setShowImport(false)}
                     onImported={(data) => {
                         const incoming = data.staff || [];
-                        const mergedStaff = [...staff, ...incoming].slice(0, maxStaff);
+                        const mergedStaff = Number.isFinite(maxStaff)
+                            ? [...staff, ...incoming].slice(0, maxStaff)
+                            : [...staff, ...incoming];
                         const byKey = new Map(incoming.map((s) => [s._id, s]));
                         // Prefer assignments from import when present (roster grid)
                         const importedAssign = Array.isArray(data.assignments) ? data.assignments : [];

@@ -69,7 +69,7 @@ export function LeaveManagerPanel({ hospitalId, staff, onUpdated }) {
 
             <div className="space-y-4 pb-6 border-b border-slate-100">
                 <h3 className="text-sm font-extrabold text-synclly-deep">Add leave period</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                         <label className="text-[10px] font-bold text-synclly-muted uppercase tracking-widest ml-1">Start</label>
                         <input

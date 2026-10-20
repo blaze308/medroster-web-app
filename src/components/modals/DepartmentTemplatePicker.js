@@ -64,15 +64,15 @@ export default function DepartmentTemplatePicker({ onSave, onSkip, busy = false,
         <div className="w-full max-w-4xl mx-auto">
             <div className="bg-white rounded-[40px] border border-slate-50 shadow-synclly-lg overflow-hidden">
                 {/* Header */}
-                <div className="px-10 pt-10 pb-6 border-b border-slate-100">
+                <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 md:pt-10 pb-4 md:pb-6 border-b border-slate-100">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-synclly-coral uppercase tracking-widest mb-3">
                         <span className="w-1.5 h-1.5 rounded-full bg-synclly-coral animate-pulse" />
                         Step {step} of 2
                     </div>
-                    <h2 className="text-3xl font-extrabold text-synclly-deep tracking-tight mb-2">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-synclly-deep tracking-tight mb-2">
                         {step === 1 ? 'Pick department groups' : 'Review and customise'}
                     </h2>
-                    <p className="text-synclly-muted font-medium">
+                    <p className="text-synclly-muted font-medium text-sm md:text-base">
                         {step === 1
                             ? 'Select the broad departments at your facility. You will add the actual wards and units inside each group next.'
                             : 'Rename anything to match your hospital, edit descriptions, or add department groups unique to you.'}
@@ -80,9 +80,9 @@ export default function DepartmentTemplatePicker({ onSave, onSkip, busy = false,
                 </div>
 
                 {/* Body */}
-                <div className="px-10 py-8 max-h-[60vh] overflow-y-auto">
+                <div className="px-4 sm:px-6 md:px-10 py-6 md:py-8 max-h-[60vh] overflow-y-auto">
                     {step === 1 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             {DEPARTMENT_TEMPLATES.map((t) => {
                                 const exists = alreadyAdded.has(t.name.toLowerCase());
                                 const active = selected.has(t.name) && !exists;
@@ -166,7 +166,7 @@ export default function DepartmentTemplatePicker({ onSave, onSkip, busy = false,
                 </div>
 
                 {/* Footer */}
-                <div className="px-10 py-6 border-t border-slate-100 flex flex-col gap-3">
+                <div className="px-4 sm:px-6 md:px-10 py-4 md:py-6 border-t border-slate-100 flex flex-col gap-3">
                     {error && (
                         <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3 text-xs font-bold text-rose-600">
                             {error}

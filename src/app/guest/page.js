@@ -87,7 +87,7 @@ export default function GuestPage() {
                 mode="guest"
                 schedule={schedule}
                 onChange={setSchedule}
-                maxStaff={20}
+                maxStaff={Infinity}
                 title="Guest roster"
                 subtitle={`Max 1 month · ${exportsLeft}/${getGuestExportLimit()} exports left · saved only in this browser`}
                 backHref="/"

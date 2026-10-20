@@ -55,6 +55,12 @@ function formatShortDate(date) {
     });
 }
 
+/** Off / Holiday markers are stored as assignments for letter fidelity — not worked duty. */
+function isRestMarkerAssignment(a) {
+    const name = a?.shiftType?.name;
+    return name === 'Off' || name === 'Holiday';
+}
+
 export function shiftDurationHours(shiftType) {
     if (!shiftType?.startTime || !shiftType?.endTime) return 0;
     const [sh, sm = 0] = String(shiftType.startTime).split(':').map(Number);
@@ -300,7 +306,7 @@ export function validateDailyRest({ staffId, assignments }) {
 
 export function validateWeeklyRest({ staffId, assignments, schedule }) {
     const target = String(staffId);
-    const own = assignments.filter((a) => String(a.staffId) === target);
+    const own = assignments.filter((a) => String(a.staffId) === target && !isRestMarkerAssignment(a));
     if (!own.length) return { valid: true };
 
     const scheduleStart = schedule?.startDate ? new Date(schedule.startDate) : earliestAssignmentDate(own);
@@ -554,7 +560,8 @@ export function validateFullSchedule({ staff, assignments, settings, schedule })
     (staff || []).forEach((sm) => {
         const id = String(sm._id || sm.id);
         const own = assignments.filter((a) => String(a.staffId) === id);
-        if (own.length === 0) return;
+        const ownDuty = own.filter((a) => !isRestMarkerAssignment(a));
+        if (ownDuty.length === 0) return;
 
         const r = validateMaxHoursPerWeek({ staffId: id, assignments, settings, schedule });
         if (r.warning) {
@@ -566,7 +573,7 @@ export function validateFullSchedule({ staff, assignments, settings, schedule })
             }, settings, 'weeklyHours');
         }
 
-        const dailyRest = validateDailyRest({ staffId: id, assignments: own });
+        const dailyRest = validateDailyRest({ staffId: id, assignments: ownDuty });
         if (dailyRest.warning) {
             pushGuideline(errors, warnings, {
                 type: 'daily_rest',
@@ -576,7 +583,7 @@ export function validateFullSchedule({ staff, assignments, settings, schedule })
             }, settings, 'dailyRest');
         }
 
-        const weeklyRest = validateWeeklyRest({ staffId: id, assignments: own, schedule });
+        const weeklyRest = validateWeeklyRest({ staffId: id, assignments: ownDuty, schedule });
         if (weeklyRest.warning) {
             pushGuideline(errors, warnings, {
                 type: 'weekly_rest',
@@ -591,7 +598,7 @@ export function validateFullSchedule({ staff, assignments, settings, schedule })
             const end = new Date(schedule.endDate);
             const totalDays = Math.floor((end - start) / (24 * 3600 * 1000)) + 1;
             const targetOffDays = scaledOffDayTarget(totalDays, holidayKeys(schedule).size);
-            const workedDays = new Set(own.map((a) => dateKey(a.date))).size;
+            const workedDays = new Set(ownDuty.map((a) => dateKey(a.date))).size;
             const offDays = totalDays - workedDays;
             if (offDays < targetOffDays) {
                 pushGuideline(errors, warnings, {

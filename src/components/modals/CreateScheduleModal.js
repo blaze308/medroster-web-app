@@ -64,8 +64,8 @@ export default function CreateScheduleModal({ hospitalId, wards = [], department
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-xl animate-in fade-in duration-300">
             <div className="w-full max-w-md bg-white rounded-[32px] overflow-hidden shadow-synclly-lg border border-slate-50 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-                <form onSubmit={handleSubmit} className="p-10">
-                    <h2 className="text-2xl font-extrabold text-synclly-deep tracking-tight mb-2">New Schedule</h2>
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-10">
+                    <h2 className="text-xl md:text-2xl font-extrabold text-synclly-deep tracking-tight mb-2">New Schedule</h2>
                     <p className="text-synclly-muted font-medium text-sm mb-6">
                         Choose the ward, cycle dates, and any holidays inside the roster.
                     </p>
@@ -88,7 +88,7 @@ export default function CreateScheduleModal({ hospitalId, wards = [], department
 
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-synclly-muted uppercase tracking-widest ml-1">Cycle Dates</label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <input
                                     type="date"
                                     required
@@ -130,7 +130,7 @@ export default function CreateScheduleModal({ hospitalId, wards = [], department
                         {hasHolidays && (
                             <div className="space-y-3">
                                 {holidays.map((holiday, index) => (
-                                    <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                    <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
                                         <input
                                             type="date"
                                             value={holiday.date}

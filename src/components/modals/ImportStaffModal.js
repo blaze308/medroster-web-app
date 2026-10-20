@@ -210,6 +210,8 @@ function UnifiedImportModal({
     const [path, setPath] = useState('roster');
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
+    /** True only while parsing/extracting a file — hides the modal and shows a page overlay. */
+    const [reading, setReading] = useState(false);
     const [error, setError] = useState('');
     const [preview, setPreview] = useState(null);
     const [rawPreview, setRawPreview] = useState(null);
@@ -345,6 +347,7 @@ function UnifiedImportModal({
         const useCsv = isCsvFile(file) || path === 'csv';
         setPath(useCsv ? 'csv' : 'roster');
         setLoading(true);
+        setReading(true);
         setError('');
         try {
             let data;
@@ -462,6 +465,7 @@ function UnifiedImportModal({
             setError(err.message || 'Could not read that file');
         } finally {
             setLoading(false);
+            setReading(false);
         }
     };
 
@@ -660,11 +664,32 @@ function UnifiedImportModal({
             : 'Staff list updated. You can keep editing or export when ready.',
     }[step];
 
+    if (reading) {
+        return (
+            <div
+                className="fixed top-3 left-3 right-3 sm:left-auto sm:right-4 sm:top-4 z-[60] sm:max-w-sm pointer-events-none"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+            >
+                <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-synclly-lg backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="w-5 h-5 shrink-0 rounded-full border-2 border-slate-200 border-t-ghs-teal animate-spin" />
+                    <div className="min-w-0 text-left">
+                        <p className="text-sm font-extrabold text-ghs-deep truncate">Reading roster…</p>
+                        <p className="text-[11px] font-medium text-ghs-muted truncate mt-0.5">
+                            {file?.name || 'Your file'} · you can keep working
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
             {toast && (
                 <div
-                    className={`fixed top-24 right-6 z-[60] max-w-md px-5 py-3 rounded-2xl shadow-lg border text-sm font-bold ${
+                    className={`fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-20 z-[60] md:max-w-md px-4 md:px-5 py-3 rounded-2xl shadow-lg border text-sm font-bold ${
                         toast.kind === 'error'
                             ? 'bg-rose-50 border-rose-200 text-rose-700'
                             : toast.kind === 'warning'
@@ -675,11 +700,11 @@ function UnifiedImportModal({
                     {toast.message}
                 </div>
             )}
-            <div className={`bg-white rounded-[28px] shadow-xl w-full p-6 max-h-[94vh] overflow-y-auto ${
+            <div className={`bg-white rounded-2xl md:rounded-[28px] shadow-xl w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 max-h-[94vh] overflow-y-auto ${
                 step === 'review'
-                    ? 'max-w-6xl'
+                    ? 'md:max-w-6xl'
                     : step === 'setup' || (step === 'review' && showGrid)
-                        ? 'max-w-5xl'
+                        ? 'md:max-w-5xl'
                         : 'max-w-lg'
             }`}>
                 <div className="flex items-start justify-between mb-4">
@@ -1631,7 +1656,7 @@ function WardSetupStep({
                                                     </span>
                                                 ) : null}
                                             </td>
-                                            <td className="p-2 min-w-[260px]">
+                                            <td className="p-2 min-w-[160px] md:min-w-[260px]">
                                                 {pending && (
                                                     <LegendKindChooser
                                                         dutyKind={dutyKind}
@@ -1919,7 +1944,7 @@ function FileDropZone({ accept, file, onFile, title, hint }) {
 function DeptWardPickers({ departments, wards, defaultDepartmentId, defaultWardId, setDefaultDepartmentId, setDefaultWardId }) {
     const departmentWards = wards.filter((w) => String(w.departmentId) === String(defaultDepartmentId));
     return (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
                 <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">Default department</label>
                 <select
@@ -1995,7 +2020,7 @@ function ReviewRankSelect({ value, onChange }) {
     }, [open]);
 
     return (
-        <div ref={rootRef} className="relative min-w-[11rem]">
+        <div ref={rootRef} className="relative min-w-[8rem] md:min-w-[11rem]">
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
@@ -2006,7 +2031,7 @@ function ReviewRankSelect({ value, onChange }) {
                 {current || '— pick rank —'}
             </button>
             {open && (
-                <div className="absolute z-30 left-0 right-0 mt-1 min-w-[16rem] rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+                <div className="absolute z-30 left-0 right-0 mt-1 min-w-[12rem] md:min-w-[16rem] rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
                     <div className="p-2 border-b border-slate-100">
                         <input
                             ref={searchRef}
@@ -2083,13 +2108,13 @@ function ReviewTable({ preview, updateRow, showGrid, onToggleGrid }) {
                     <thead className="bg-slate-50 sticky top-0 z-10">
                         <tr className="text-left text-[10px] uppercase tracking-wider text-ghs-muted">
                             <th className="p-2 w-10">In</th>
-                            <th className="p-2 min-w-[9rem]">Name</th>
-                            <th className="p-2 min-w-[12rem]">Rank</th>
+                            <th className="p-2 min-w-[7rem] md:min-w-[9rem]">Name</th>
+                            <th className="p-2 min-w-[8rem] md:min-w-[12rem]">Rank</th>
                             {preview.source === 'csv' && <th className="p-2">Phone</th>}
                             {preview.source === 'roster' && showGrid && days.slice(0, 16).map((d) => (
                                 <th key={d.date} className="p-1 font-bold text-center">{d.dayNum || d.dow}</th>
                             ))}
-                            <th className="p-2 min-w-[16rem] w-[28%]">Note</th>
+                            <th className="p-2 min-w-[10rem] md:min-w-[16rem] md:w-[28%]">Note</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2104,7 +2129,7 @@ function ReviewTable({ preview, updateRow, showGrid, onToggleGrid }) {
                                             onChange={(e) => updateRow(s.key, { selected: e.target.checked })}
                                         />
                                     </td>
-                                    <td className="p-2 min-w-[9rem]">
+                                    <td className="p-2 min-w-[7rem] md:min-w-[9rem]">
                                         <input
                                             className="w-full h-10 rounded-xl border border-slate-100 bg-white px-2 font-bold text-ghs-deep"
                                             value={`${s.firstName || ''} ${s.lastName || ''}`.trim()}
@@ -2114,7 +2139,7 @@ function ReviewTable({ preview, updateRow, showGrid, onToggleGrid }) {
                                             }}
                                         />
                                     </td>
-                                    <td className="p-2 min-w-[12rem]">
+                                    <td className="p-2 min-w-[8rem] md:min-w-[12rem]">
                                         <ReviewRankSelect
                                             value={s.rankFull || s.rank || ''}
                                             onChange={(rank) => updateRow(s.key, { rankFull: rank, rank })}
@@ -2134,7 +2159,7 @@ function ReviewTable({ preview, updateRow, showGrid, onToggleGrid }) {
                                             </td>
                                         );
                                     })}
-                                    <td className="p-2 min-w-[16rem]">
+                                    <td className="p-2 min-w-[10rem] md:min-w-[16rem]">
                                         <textarea
                                             rows={2}
                                             className="w-full min-h-[2.75rem] rounded-xl border border-slate-100 bg-white px-2.5 py-2 text-xs font-medium text-ghs-deep resize-y leading-snug"

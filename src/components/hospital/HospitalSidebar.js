@@ -26,14 +26,27 @@ export default function HospitalSidebar({
                 />
             )}
 
-            <aside className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-100 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:relative flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <Link href="/" className="p-6 mb-2 flex items-center gap-3 hover:bg-slate-50/50 transition-colors">
-                    <img src="/logo.svg" alt="MedRoster" className="w-10 h-10 rounded-xl shadow-lg shadow-ghs-teal/20" />
-                    <div className="flex flex-col">
-                        <span className="text-base font-extrabold text-ghs-deep leading-tight">MedRoster</span>
-                        <span className="text-[10px] font-bold text-ghs-muted uppercase tracking-wider">Dashboard</span>
-                    </div>
-                </Link>
+            <aside className={`fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-white border-r border-slate-100 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:relative md:max-w-none flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="p-4 md:p-6 mb-2 flex items-center gap-3">
+                    <Link href="/" className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity">
+                        <img src="/logo.svg" alt="MedRoster" className="w-10 h-10 rounded-xl shadow-lg shadow-ghs-teal/20 shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-base font-extrabold text-ghs-deep leading-tight">MedRoster</span>
+                            <span className="text-[10px] font-bold text-ghs-muted uppercase tracking-wider">Dashboard</span>
+                        </div>
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-ghs-surface flex items-center justify-center text-ghs-muted hover:text-ghs-deep"
+                        aria-label="Close menu"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
 
                 <div className="flex-1 overflow-y-auto px-4 space-y-8">
                     <div className="space-y-1">
