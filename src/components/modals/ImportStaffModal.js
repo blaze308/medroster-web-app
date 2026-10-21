@@ -247,20 +247,39 @@ function UnifiedImportModal({
         [preview]
     );
 
-    const toLocalStaff = (rows) => rows.map((s, i) => ({
-        _id: s._id || `${mode}_${Date.now()}_${i}`,
-        firstName: s.firstName || '',
-        lastName: s.lastName || '',
-        rank: s.rankFull || s.rank || '',
-        phone: s.phone || '',
-        email: s.email || '',
-        wardRole: s.wardRole || 'regular',
-        annualLeaveDays: s.annualLeaveDays,
-        notes: s.notes || s.leaveNote || '',
-        cells: s.cells || [],
-        assignments: s.assignments || [],
-        leaveType: s.leaveType || '',
-    }));
+    const toLocalStaff = (rows, days = []) => rows.map((s, i) => {
+        const leaveType = s.leaveType || '';
+        const onLeave = Boolean(leaveType);
+        const sortedDates = (days || []).map((d) => d.date).filter(Boolean).sort();
+        const leaveRecords = onLeave && sortedDates.length
+            ? [{
+                id: `leave_${Date.now()}_${i}`,
+                startDate: `${sortedDates[0]}T00:00:00.000Z`,
+                endDate: `${sortedDates[sortedDates.length - 1]}T23:59:59.000Z`,
+                leaveType,
+                status: 'Approved',
+                notes: s.leaveNote || s.notes || '',
+            }]
+            : [];
+        return {
+            _id: s._id || `${mode}_${Date.now()}_${i}`,
+            firstName: s.firstName || '',
+            lastName: s.lastName || '',
+            rank: s.rankFull || s.rank || '',
+            phone: s.phone || '',
+            email: s.email || '',
+            wardRole: s.wardRole || 'regular',
+            isRotation: Boolean(s.isRotation),
+            employmentStatus: onLeave ? 'On Leave' : 'Active',
+            maternityNoNight: /maternity/i.test(leaveType),
+            annualLeaveDays: s.annualLeaveDays,
+            notes: s.notes || s.leaveNote || '',
+            cells: s.cells || [],
+            assignments: s.assignments || [],
+            leaveType,
+            leaveRecords,
+        };
+    });
 
     const downloadTemplate = async () => {
         try {
@@ -328,6 +347,7 @@ function UnifiedImportModal({
                     .filter((r) => r.leaveLikely || r.leaveType)
                     .map((r) => [r.key, { onLeave: true, leaveType: r.leaveType || 'annual' }])
             ),
+            coverTargets: proposal.coverTargets || pack?.coverTargets || null,
             roleGuesses: proposal.roleGuesses,
             blanks: proposal.blanks,
             needsFullSetup: proposal.needsFullSetup,
@@ -579,9 +599,9 @@ function UnifiedImportModal({
         setError('');
         try {
             if (!isHospital) {
-                const staff = toLocalStaff(selected);
-                const assignments = mapPreviewToAssignments(staff, sandboxShiftTypes());
                 const days = preview.days || [];
+                const staff = toLocalStaff(selected, days);
+                const assignments = mapPreviewToAssignments(staff, sandboxShiftTypes());
                 const sortedDates = days.map((d) => d.date).filter(Boolean).sort();
                 const data = {
                     imported: staff.length,

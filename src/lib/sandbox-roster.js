@@ -1,7 +1,7 @@
 import { DEFAULT_SHIFT_TYPES, getDefaultHospitalSettings } from './ghana-data';
 import { classifyStaffType, isStaffOnLeave } from './staff-utils';
 import { validateRoleShiftCompatibility, validateWorkRestriction } from './validation';
-import { preferredSourceCode } from './roster-setup';
+import { preferredSourceCode, coverTargetForDate, normalizeCoverTargets, DEFAULT_COVER_TARGETS } from './roster-setup';
 import { isRuleHard, normalizeRuleModes } from './rule-modes';
 
 /** Shift types with ids for ShiftPicker / local assign. */
@@ -91,10 +91,19 @@ function canAssignCover(staff, day, shift, holidays) {
     return true;
 }
 
-function dayHasCover(assignments, dk, shiftName) {
-    return (assignments || []).some(
+function coverCount(assignments, dk, shiftName) {
+    return (assignments || []).filter(
         (a) => dateKey(a.date) === dk && a.shiftType?.name === shiftName
-    );
+    ).length;
+}
+
+function dayHasCover(assignments, dk, shiftName, target = 1) {
+    return coverCount(assignments, dk, shiftName) >= Math.max(1, target || 1);
+}
+
+function resolveCoverTargets(rosterSetup) {
+    if (rosterSetup?.coverTargets) return normalizeCoverTargets(rosterSetup.coverTargets);
+    return DEFAULT_COVER_TARGETS;
 }
 
 function staffTakenOnDay(assignments, dk) {
@@ -106,7 +115,8 @@ function staffTakenOnDay(assignments, dk) {
 }
 
 /**
- * Scan empty Morning/Afternoon/Night cover slots and eligible staff.
+ * Scan under-filled Morning/Afternoon/Night cover slots and eligible staff.
+ * Emits one slot per missing headcount toward coverTargets (weekday/weekend).
  * Does not place Office/SOD — those stay as imported clinic / duty cells.
  */
 function scanGeneratableSlots({
@@ -116,6 +126,7 @@ function scanGeneratableSlots({
     shiftTypes = sandboxShiftTypes(),
     existing = [],
     holidays = [],
+    rosterSetup = null,
 }) {
     const shifts = COVER_NAMES
         .map((name) => (shiftTypes || []).find((st) => st.name === name))
@@ -124,6 +135,7 @@ function scanGeneratableSlots({
         return { slots: [], fillableCount: 0 };
     }
 
+    const coverTargets = resolveCoverTargets(rosterSetup);
     const days = buildDays(startDate, endDate);
     const pool = staff.filter((s) => (s.employmentStatus || 'Active') !== 'On Leave');
     const slots = [];
@@ -132,12 +144,18 @@ function scanGeneratableSlots({
         const dk = dateKey(day);
         const taken = staffTakenOnDay(existing, dk);
         for (const shift of shifts) {
-            if (dayHasCover(existing, dk, shift.name)) continue;
+            const target = coverTargetForDate(coverTargets, shift.name, dk);
+            const have = coverCount(existing, dk, shift.name);
+            const need = Math.max(0, target - have);
+            if (need <= 0) continue;
             const candidates = pool.filter(
                 (s) => !taken.has(String(s._id)) && canAssignCover(s, day, shift, holidays)
             );
             if (!candidates.length) continue;
-            slots.push({ date: dk, shift, candidates });
+            // One slot entry per missing seat (generate re-filters taken live)
+            for (let i = 0; i < need; i++) {
+                slots.push({ date: dk, shift, candidates, target });
+            }
         }
     }
 
@@ -261,7 +279,7 @@ export function countGeneratableSlots(args) {
 }
 
 /**
- * Gap-fill Morning / Afternoon / Night when empty.
+ * Gap-fill Morning / Afternoon / Night up to coverTargets headcount.
  * Preserves existing assignments (including Office clinic cells). Never auto-places Office/SOD.
  */
 export function generateSandboxAssignments({
@@ -277,6 +295,7 @@ export function generateSandboxAssignments({
     ruleModes = null,
 }) {
     const base = replace ? [] : (existing || []).map((a) => ({ ...a }));
+    const coverTargets = resolveCoverTargets(rosterSetup);
     const { slots } = scanGeneratableSlots({
         staff,
         startDate,
@@ -284,6 +303,7 @@ export function generateSandboxAssignments({
         shiftTypes,
         existing: base,
         holidays,
+        rosterSetup,
     });
     if (!slots.length) return base;
 
@@ -336,7 +356,8 @@ export function generateSandboxAssignments({
         });
 
         for (const slot of ordered) {
-            if (dayHasCover(next, dk, slot.shift.name)) continue;
+            const target = slot.target || coverTargetForDate(coverTargets, slot.shift.name, dk);
+            if (dayHasCover(next, dk, slot.shift.name, target)) continue;
             const isNight = slot.shift.name === 'Night';
             let candidates = slot.candidates.filter((s) => !taken.has(String(s._id)));
             // Re-check eligibility against live state
@@ -356,8 +377,9 @@ export function generateSandboxAssignments({
                         : 0;
                 return soft || (counts.get(String(a._id)) || 0) - (counts.get(String(b._id)) || 0);
             });
+            // Prefer a senior for the first seat on each shift; otherwise load-balance
             let pick = candidates[0];
-            if (seniors.length) {
+            if (seniors.length && coverCount(next, dk, slot.shift.name) === 0) {
                 const seniorPick = candidates.find((s) => seniors.some((x) => String(x._id) === String(s._id)));
                 if (seniorPick) pick = seniorPick;
             }
@@ -365,8 +387,9 @@ export function generateSandboxAssignments({
             const sid = String(pick._id);
             const dutyOverlaps = [slot.shift.name];
             const sourceCode = preferredSourceCode(slot.shift.name, legend) || undefined;
+            const seat = coverCount(next, dk, slot.shift.name);
             next.push({
-                _id: `a_${sid}_${dk}_${slot.shift.name}`,
+                _id: `a_${sid}_${dk}_${slot.shift.name}_${seat}`,
                 staffId: sid,
                 date: `${dk}T00:00:00.000Z`,
                 sourceCode,
