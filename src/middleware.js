@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { GUEST_ONLY_TESTING } from './lib/app-config';
 
 export function middleware(request) {
-    if (process.env.NEXT_PUBLIC_GUEST_ONLY_TESTING !== 'true') {
+    if (!GUEST_ONLY_TESTING) {
         return NextResponse.next();
     }
     const { pathname } = request.nextUrl;
