@@ -13,6 +13,7 @@ import {
 } from '../../lib/sandbox-roster';
 import { preferredSourceCode } from '../../lib/roster-setup';
 import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
+import { clearGuestSchedule } from '../../lib/guest-storage';
 import RuleModesPanel from '../shared/RuleModesPanel';
 
 const CLEAR_OPTIONS = [
@@ -22,6 +23,12 @@ const CLEAR_OPTIONS = [
         hint: 'Shift codes, meanings, overlaps, and in-charge / assistant picks',
         defaultChecked: true,
         locked: true,
+    },
+    {
+        id: 'ward',
+        label: 'Ward title & dates',
+        hint: 'Reset ward name and calendar start/end (e.g. back to this month)',
+        defaultChecked: false,
     },
     {
         id: 'shifts',
@@ -42,6 +49,38 @@ function formatRange(start, end) {
     const s = new Date(start);
     const e = new Date(end);
     return `${s.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
+/** Default ward title + calendar month (matches guest page initial state). */
+function defaultSchedulePeriod(mode = 'guest') {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const label = start.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+    return {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        name: label,
+        wardName: mode === 'guest' ? 'My Ward' : label,
+    };
+}
+
+/** Drop import-era ward fields and apply default period (guest localStorage-safe). */
+function resetWardDetails(target, mode) {
+    Object.assign(target, defaultSchedulePeriod(mode));
+    target.holidays = [];
+    delete target.title;
+}
+
+function freshGuestScheduleState(mode) {
+    return {
+        ...defaultSchedulePeriod(mode),
+        staff: [],
+        assignments: [],
+        holidays: [],
+        rosterSetup: null,
+        ruleModes: getDefaultRuleModes(),
+    };
 }
 
 /**
@@ -97,19 +136,39 @@ export default function SandboxScheduleShell({
         const clearSetup = Boolean(selected?.setup ?? selected === true);
         const clearStaff = Boolean(selected?.staff);
         const clearShifts = Boolean(selected?.shifts) || clearStaff;
+        const clearWard = Boolean(selected?.ward) || clearSetup;
+
+        const cleanSlate = clearSetup && clearShifts && clearStaff && clearWard;
+        if (cleanSlate && mode === 'guest') {
+            const next = freshGuestScheduleState(mode);
+            clearGuestSchedule();
+            onChange?.(next);
+            setToast('Clean slate — ward, setup, shifts, and staff cleared.');
+            return;
+        }
+
         const next = { ...schedule };
-        if (clearSetup) next.rosterSetup = null;
+        if (clearSetup) {
+            next.rosterSetup = null;
+            next.ruleModes = getDefaultRuleModes();
+        }
+        if (clearWard) {
+            resetWardDetails(next, mode);
+        }
         if (clearShifts) next.assignments = [];
         if (clearStaff) next.staff = [];
         onChange?.(next);
         const parts = [];
         if (clearSetup) parts.push('setup');
+        if (clearWard) parts.push('ward');
         if (clearShifts) parts.push('shifts');
         if (clearStaff) parts.push('staff');
         setToast(
-            parts.length === 3
-                ? 'Clean slate — setup, shifts, and staff cleared.'
-                : `Cleared ${parts.join(', ')}.`
+            cleanSlate
+                ? 'Clean slate — ward, setup, shifts, and staff cleared.'
+                : parts.length
+                    ? `Cleared ${parts.join(', ')}.`
+                    : 'Nothing selected to clear.'
         );
     };
 

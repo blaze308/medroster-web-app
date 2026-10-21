@@ -42,6 +42,7 @@ import { mapPreviewToAssignments, sandboxShiftTypes } from '../../lib/sandbox-ro
 import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
 import ConfirmModal from './ConfirmModal';
 import RuleModesPanel from '../shared/RuleModesPanel';
+import { markImportHintShown, shouldShowImportHint } from '../../lib/import-hint-toast';
 
 const FRESH_SETUP_CLEAR_OPTIONS = [
     {
@@ -220,9 +221,12 @@ function UnifiedImportModal({
     const [defaultDepartmentId, setDefaultDepartmentId] = useState(defaultDepartmentIdProp || departments[0]?._id || '');
     const [defaultWardId, setDefaultWardId] = useState(defaultWardIdProp || wards[0]?._id || '');
     const [setupDraft, setSetupDraft] = useState(null);
+    /** 0 = Roles, 1 = Roster codes, 2 = Leave */
+    const [setupSubStep, setSetupSubStep] = useState(0);
     const [confirmedSetup, setConfirmedSetup] = useState(null);
     const [toast, setToast] = useState(null); // { kind, message }
     const [showFreshClear, setShowFreshClear] = useState(false);
+    const [importIntro, setImportIntro] = useState(false);
     const [rules, setRules] = useState({
         leaveStayOff: true,
         offAndHolidayStayOff: true,
@@ -235,6 +239,16 @@ function UnifiedImportModal({
         const t = setTimeout(() => setToast(null), 4200);
         return () => clearTimeout(t);
     }, [toast]);
+
+    useEffect(() => {
+        if (!shouldShowImportHint()) return;
+        setImportIntro(true);
+        markImportHintShown();
+    }, []);
+
+    useEffect(() => {
+        if (step === 'setup') setSetupSubStep(0);
+    }, [step, setupDraft?.proposal]);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -511,6 +525,35 @@ function UnifiedImportModal({
         return missing;
     }, [setupDraft]);
 
+    const setupHasLegendStep = Boolean((setupDraft?.legend || []).length);
+
+    const advanceSetupWizard = () => {
+        setError('');
+        if (setupSubStep === 0) {
+            setSetupDraft((d) => ({
+                ...d,
+                inchargeSkipped: d.inchargeStaffKey ? d.inchargeSkipped : true,
+                assistantSkipped: d.assistantStaffKey ? d.assistantSkipped : true,
+                inchargeChecked: true,
+                assistantChecked: true,
+            }));
+            setSetupSubStep(setupHasLegendStep ? 1 : 2);
+            return;
+        }
+        if (setupSubStep === 1) {
+            if (pendingSetupLabels.length) {
+                setToast({
+                    kind: 'warning',
+                    message: `Confirm each code first (${pendingSetupLabels.join(', ')}). Pick a meaning, then press Confirm.`,
+                });
+                return;
+            }
+            setSetupSubStep(2);
+            return;
+        }
+        applySetupAndReview();
+    };
+
     const applyFreshSetup = (selected = { setup: true }) => {
         if (!rawPreview) return;
         onClearRosterSetup?.({
@@ -534,6 +577,7 @@ function UnifiedImportModal({
         draft.assistantChecked = false;
         setConfirmedSetup(null);
         setSetupDraft(draft);
+        setSetupSubStep(0);
         setPreview(null);
         setStep('setup');
         setShowFreshClear(false);
@@ -683,7 +727,7 @@ function UnifiedImportModal({
         upload: 'Drop a duty roster photo, PDF, Word, or Excel. We’ll read names and shifts.',
         setup: wardPack?.confirmedAt
             ? 'Only new or unclear codes are shown — the rest comes from this ward’s saved pack.'
-            : 'One-time for this ward — we save this so the next roster import is faster.',
+            : 'One-time setup for this ward — we’ll remember it for next time.',
         review: 'Tick who to keep. Nothing is saved yet.',
         rules: 'How should we read the file? Core roster rules stay on.',
         done: isHospital
@@ -742,16 +786,40 @@ function UnifiedImportModal({
                         <h3 className="text-lg font-extrabold text-ghs-deep leading-tight">
                             {step === 'done' ? 'Imported' : 'Import staff data'}
                         </h3>
-                        {step !== 'done' && (
+                        {step !== 'done' && step !== 'setup' && (
                             <p className="text-[11px] font-medium text-ghs-muted mt-0.5">Photo, PDF, Word, or Excel</p>
                         )}
-                        <p className="text-xs text-ghs-muted font-medium mt-1">{stepHint}</p>
+                        {step !== 'done' && (
+                            <p className="text-xs text-ghs-muted font-medium mt-1">{stepHint}</p>
+                        )}
                     </div>
                     <button type="button" onClick={onClose} className="text-ghs-muted hover:text-ghs-deep text-xl leading-none">×</button>
                 </div>
 
                 {step === 'upload' && (
                     <div className="space-y-4">
+                        {importIntro && (
+                            <div
+                                className="rounded-2xl border border-ghs-teal/25 bg-ghs-teal/5 px-4 py-3 flex items-start gap-3"
+                                role="status"
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-extrabold text-ghs-deep">How import works</p>
+                                    <p className="text-[11px] font-medium text-ghs-muted leading-snug mt-0.5">
+                                        Upload a duty roster photo, PDF, Word, or Excel — or a CSV staff list. We read
+                                        names and shifts, then you match roster letters and choose who to keep before
+                                        anything is saved.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setImportIntro(false)}
+                                    className="shrink-0 h-8 px-3 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-ghs-deep cursor-pointer"
+                                >
+                                    Got it
+                                </button>
+                            </div>
+                        )}
                         {isHospital && !lockWard && (
                             <DeptWardPickers
                                 departments={departments}
@@ -776,19 +844,22 @@ function UnifiedImportModal({
                 )}
 
                 {step === 'setup' && setupDraft && (
-                    <WardSetupStep
-                        draft={setupDraft}
-                        setDraft={setSetupDraft}
-                        wardName={wardName}
-                        hasSavedPack={Boolean(wardPack?.confirmedAt) && !setupDraft.rolesEssential}
-                        pendingLabels={pendingSetupLabels}
-                        pendingRoles={pendingRoles}
-                        onStartFresh={
-                            (mode === 'guest' || mode === 'individual') && (wardPack?.confirmedAt || confirmedSetup)
-                                ? startFreshSetup
-                                : null
-                        }
-                    />
+                    <>
+                        <ImportSetupStepper currentIndex={setupSubStep} />
+                        <WardSetupStep
+                            subStep={setupSubStep}
+                            draft={setupDraft}
+                            setDraft={setSetupDraft}
+                            wardName={wardName}
+                            hasSavedPack={Boolean(wardPack?.confirmedAt) && !setupDraft.rolesEssential}
+                            pendingLabels={pendingSetupLabels}
+                            onStartFresh={
+                                (mode === 'guest' || mode === 'individual') && (wardPack?.confirmedAt || confirmedSetup)
+                                    ? startFreshSetup
+                                    : null
+                            }
+                        />
+                    </>
                 )}
 
                 {step === 'review' && preview && (
@@ -843,8 +914,30 @@ function UnifiedImportModal({
                     <div className="mt-4 bg-rose-50 border border-rose-100 rounded-xl p-3 text-xs font-bold text-rose-600">{error}</div>
                 )}
 
-                <div className="flex gap-3 pt-4">
-                    {step === 'upload' || step === 'done' ? (
+                <div className={`flex gap-3 pt-4 ${step === 'setup' ? 'items-center justify-between' : ''}`}>
+                    {step === 'setup' ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setError('');
+                                if (setupSubStep === 0) {
+                                    setSetupDraft((d) => ({
+                                        ...d,
+                                        inchargeSkipped: d.inchargeStaffKey ? d.inchargeSkipped : true,
+                                        assistantSkipped: d.assistantStaffKey ? d.assistantSkipped : true,
+                                        inchargeChecked: true,
+                                        assistantChecked: true,
+                                    }));
+                                    setSetupSubStep(setupHasLegendStep ? 1 : 2);
+                                } else {
+                                    setSetupSubStep((s) => Math.max(0, s - 1));
+                                }
+                            }}
+                            className="h-12 px-2 rounded-2xl font-bold text-sm text-ghs-muted hover:text-ghs-deep"
+                        >
+                            {setupSubStep === 0 ? 'Skip for now' : '‹ Back'}
+                        </button>
+                    ) : step === 'upload' || step === 'done' ? (
                         <button
                             type="button"
                             onClick={() => {
@@ -864,8 +957,10 @@ function UnifiedImportModal({
                                 setError('');
                                 if (step === 'rules') setStep('review');
                                 else if (step === 'review') {
-                                    if (rawPreview && setupDraft) setStep('setup');
-                                    else {
+                                    if (rawPreview && setupDraft) {
+                                        setSetupSubStep(setupHasLegendStep ? 1 : 2);
+                                        setStep('setup');
+                                    } else {
                                         setStep('upload');
                                         setPreview(null);
                                         setRawPreview(null);
@@ -896,17 +991,10 @@ function UnifiedImportModal({
                     {step === 'setup' && (
                         <button
                             type="button"
-                            onClick={() => {
-                                setError('');
-                                applySetupAndReview();
-                            }}
-                            className="flex-1 h-12 rounded-2xl bg-ghs-teal text-white font-bold text-sm"
+                            onClick={advanceSetupWizard}
+                            className="h-12 min-w-[9rem] px-6 rounded-2xl bg-ghs-teal text-white font-bold text-sm shrink-0"
                         >
-                            {pendingRoles.length
-                                ? `Set ${pendingRoles.join(' / ')}`
-                                : pendingSetupLabels.length
-                                    ? `Check ${pendingSetupLabels.length} code${pendingSetupLabels.length === 1 ? '' : 's'}`
-                                    : 'Continue to review'}
+                            {setupSubStep === 2 ? 'Finish import' : 'Continue ›'}
                         </button>
                     )}
                     {step === 'review' && (
@@ -972,11 +1060,11 @@ function LeaveLegendPanel() {
                 className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-white/60"
             >
                 <span>
-                    <span className="block text-[10px] font-bold text-ghs-muted uppercase tracking-widest">
-                        Leave guide
+                    <span className="block text-sm font-extrabold text-ghs-deep">
+                        Leave guide — how many days?
                     </span>
                     <span className="block text-[11px] font-medium text-ghs-muted mt-0.5">
-                        {open ? 'Hide tip sheet' : 'How many days? Annual, maternity, and more'}
+                        {open ? 'Hide tip sheet' : 'Annual, maternity, sick leave, and more'}
                     </span>
                 </span>
                 <span className="text-sm font-extrabold text-ghs-teal shrink-0" aria-hidden>
@@ -1389,22 +1477,490 @@ function MeaningPicker({ value, onChange, pending = false, detectedUnit = '' }) 
     );
 }
 
+function legendKeywordTitle(entry) {
+    const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
+    if (dutyKind === 'skip' && entry.userChecked) {
+        return `Ignore · code ${entry.label}`;
+    }
+    if (entry.meaning) {
+        const label = displayMeaningLabel(entry.meaning) || entry.meaning;
+        return `${label} · code ${entry.label}`;
+    }
+    return `Code ${entry.label}`;
+}
+
+function legendSelectValue(entry) {
+    const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
+    if (dutyKind === 'skip') return '__ignore__';
+    if (entry.meaning) return entry.meaning;
+    return '';
+}
+
+function applyLegendSelectValue(setLegend, entry, raw) {
+    if (!raw) return;
+    if (raw === '__ignore__') {
+        setLegend(entry.label, {
+            meaning: '',
+            dutyKind: 'skip',
+            dutyOverlaps: [],
+            officeDays: [],
+            outsideMorning: false,
+            needsConfirm: true,
+            userChecked: false,
+        });
+        return;
+    }
+    if (raw === 'Office') {
+        setLegend(entry.label, {
+            meaning: 'Office',
+            dutyKind: 'clinic',
+            dutyOverlaps: defaultDutyOverlaps('Office'),
+            officeDays: entry.officeDays?.length ? entry.officeDays : defaultOfficeDays('Office'),
+            outsideMorning: Boolean(entry.outsideMorning),
+            needsConfirm: true,
+            userChecked: false,
+        });
+        return;
+    }
+    if (['Off', 'Holiday', 'Leave'].includes(raw)) {
+        setLegend(entry.label, {
+            meaning: raw,
+            dutyKind: 'off',
+            dutyOverlaps: [],
+            officeDays: [],
+            outsideMorning: false,
+            needsConfirm: true,
+            userChecked: false,
+        });
+        return;
+    }
+    setLegend(entry.label, {
+        meaning: raw,
+        dutyKind: 'ward',
+        dutyOverlaps: defaultDutyOverlaps(raw),
+        officeDays: [],
+        outsideMorning: false,
+        needsConfirm: true,
+        userChecked: false,
+    });
+}
+
+function toggleLegendConfirmed(setLegend, entry) {
+    const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
+    const canConfirm = Boolean(entry.meaning) || dutyKind === 'skip';
+    const ok = entry.userChecked || (!entry.needsConfirm && entry.meaning);
+
+    if (ok && entry.userChecked) {
+        setLegend(entry.label, { needsConfirm: true, userChecked: false });
+        return;
+    }
+    if (!canConfirm) return;
+    setLegend(entry.label, {
+        needsConfirm: false,
+        userChecked: true,
+        dutyKind: dutyKind === 'skip' ? 'skip' : (kindFromMeaning(entry.meaning) || dutyKind),
+        meaning: dutyKind === 'skip' ? '' : entry.meaning,
+    });
+}
+
+function LegendCodeRow({ entry, setLegend }) {
+    const pending = entry.needsConfirm && !entry.userChecked;
+    const ok = entry.userChecked || (!entry.needsConfirm && (entry.meaning || entry.dutyKind === 'skip'));
+    const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
+    const isClinic = entry.meaning === 'Office' || dutyKind === 'clinic';
+    const canConfirm = Boolean(entry.meaning) || dutyKind === 'skip';
+    const rowTint = pending ? 'bg-amber-50/80' : ok ? 'bg-emerald-50/40' : 'bg-white';
+
+    return (
+        <>
+            <tr className={rowTint}>
+                <td className="p-2 align-top w-[50%] min-h-[5.5rem]">
+                    <div className="min-h-[5.5rem] flex flex-col justify-start">
+                        <p className="text-sm font-extrabold text-ghs-deep leading-snug">{legendKeywordTitle(entry)}</p>
+                        {(entry.codeHint || codePlainHint(entry.label)) ? (
+                            <p className="text-[10px] font-medium text-ghs-muted mt-0.5 leading-snug">
+                                {entry.codeHint || codePlainHint(entry.label)}
+                            </p>
+                        ) : null}
+                        <select
+                            className={`w-full h-9 mt-2 rounded-lg border bg-white px-2 text-xs font-semibold ${
+                                pending ? 'border-amber-300' : 'border-slate-100'
+                            }`}
+                            value={legendSelectValue(entry)}
+                            onChange={(ev) => applyLegendSelectValue(setLegend, entry, ev.target.value)}
+                            aria-label={`Meaning for code ${entry.label}`}
+                        >
+                            <option value="">Choose meaning…</option>
+                            <optgroup label="Off / leave">
+                                <option value="Leave">Leave</option>
+                                <option value="Off">Off</option>
+                                <option value="Holiday">Holiday</option>
+                            </optgroup>
+                            <optgroup label="Ward cover">
+                                <option value="Morning">Morning</option>
+                                <option value="Afternoon">Afternoon</option>
+                                <option value="Night">Night</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="Office">Clinic / OPD</option>
+                                <option value="__ignore__">Ignore this letter</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </td>
+                <td className="p-2 align-top w-[38%]">
+                    <input
+                        className="w-full h-9 rounded-lg border border-slate-100 bg-white px-2 text-xs font-medium"
+                        value={entry.unit || ''}
+                        placeholder="Clinic or unit name (if needed)"
+                        title="e.g. Antenatal, Ultrasound, General X-ray"
+                        aria-label={`Unit name for code ${entry.label}`}
+                        onChange={(ev) => setLegend(entry.label, {
+                            unit: ev.target.value,
+                            needsConfirm: pending ? true : entry.needsConfirm,
+                            userChecked: pending ? false : entry.userChecked,
+                        })}
+                    />
+                </td>
+                <td className="p-2 align-top w-[12%] text-center">
+                    <button
+                        type="button"
+                        disabled={!canConfirm}
+                        onClick={() => toggleLegendConfirmed(setLegend, entry)}
+                        aria-label={ok ? 'Confirmed — tap to edit' : 'Confirm this letter'}
+                        className={`w-10 h-10 mx-auto rounded-full border-2 flex items-center justify-center text-sm font-extrabold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                            ok
+                                ? 'border-ghs-teal bg-ghs-teal text-white'
+                                : pending
+                                    ? 'border-amber-400 bg-white text-amber-700'
+                                    : 'border-slate-200 bg-white text-ghs-muted'
+                        }`}
+                    >
+                        {ok ? '✓' : ''}
+                    </button>
+                </td>
+            </tr>
+            {isClinic && dutyKind !== 'skip' && (
+                <tr className={rowTint}>
+                    <td colSpan={3} className="px-2 pb-3 pt-0">
+                        <OfficeClinicPanel
+                            officeDays={entry.officeDays?.length ? entry.officeDays : defaultOfficeDays('Office')}
+                            dutyOverlaps={entry.dutyOverlaps?.length ? entry.dutyOverlaps : defaultDutyOverlaps('Office')}
+                            onChange={(patch) => setLegend(entry.label, {
+                                ...patch,
+                                dutyKind: 'clinic',
+                                meaning: 'Office',
+                                needsConfirm: true,
+                                userChecked: false,
+                            })}
+                        />
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+}
+
+const SETUP_WIZARD_STEPS = [
+    { id: 'roles', label: 'Roles' },
+    { id: 'codes', label: 'Roster codes' },
+    { id: 'leave', label: 'Leave' },
+];
+
+function ImportSetupStepper({ currentIndex }) {
+    return (
+        <div className="flex items-center w-full mb-5" aria-label="Import setup progress">
+            {SETUP_WIZARD_STEPS.map((s, i) => {
+                const done = i < currentIndex;
+                const active = i === currentIndex;
+                return (
+                    <div key={s.id} className={`flex items-center min-w-0 ${i < SETUP_WIZARD_STEPS.length - 1 ? 'flex-1' : ''}`}>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold border-2 ${
+                                    done
+                                        ? 'bg-ghs-teal border-ghs-teal text-white'
+                                        : active
+                                            ? 'border-ghs-teal text-ghs-teal bg-white'
+                                            : 'border-slate-200 text-slate-400 bg-white'
+                                }`}
+                            >
+                                {done ? '✓' : i + 1}
+                            </div>
+                            <span
+                                className={`text-sm font-bold truncate ${
+                                    active || done ? 'text-ghs-deep' : 'text-ghs-muted'
+                                }`}
+                            >
+                                {s.label}
+                            </span>
+                        </div>
+                        {i < SETUP_WIZARD_STEPS.length - 1 && (
+                            <div
+                                className={`h-0.5 flex-1 mx-2 min-w-[0.75rem] rounded-full ${
+                                    i < currentIndex ? 'bg-ghs-teal' : 'bg-slate-200'
+                                }`}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function staffAvatarInitial(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    const last = parts[parts.length - 1] || parts[0] || '?';
+    return last.charAt(0).toUpperCase();
+}
+
+function SetupLeaveStaffRow({ person, leave, onToggle, onLeaveTypeChange }) {
+    const onLeave = Boolean(leave?.onLeave);
+    const leaveKey = leave?.leaveType || person.leaveType || 'annual';
+
+    return (
+        <div className="flex items-center gap-3 p-3 bg-white">
+            <input
+                type="checkbox"
+                className="w-5 h-5 accent-ghs-teal shrink-0"
+                checked={onLeave}
+                onChange={(e) => onToggle(person.key, e.target.checked)}
+            />
+            <div className="w-9 h-9 rounded-full bg-ghs-teal/10 text-ghs-teal flex items-center justify-center text-sm font-extrabold shrink-0">
+                {staffAvatarInitial(person.name)}
+            </div>
+            <span className="flex-1 text-sm font-bold text-ghs-deep min-w-0 truncate">{person.name}</span>
+            {onLeave && (
+                <select
+                    className="h-10 max-w-[min(100%,14rem)] rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold shrink-0"
+                    value={leaveKey}
+                    onChange={(e) => onLeaveTypeChange(person.key, e.target.value)}
+                >
+                    {LEAVE_LEGEND.map((item) => (
+                        <option key={item.key} value={item.key}>
+                            {item.label} · {item.days}
+                        </option>
+                    ))}
+                </select>
+            )}
+        </div>
+    );
+}
+
+function SetupRoleCard({
+    icon,
+    title,
+    staffKey,
+    skipped,
+    roleGuesses,
+    onChange,
+}) {
+    const selected = roleGuesses.find((r) => r.key === staffKey);
+    const status = selected ? selected.name : skipped ? 'Skipped' : 'Not set';
+    const statusTone = selected
+        ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
+        : skipped
+            ? 'bg-slate-100 text-ghs-muted border-slate-100'
+            : 'bg-amber-50 text-amber-900 border-amber-100';
+
+    return (
+        <div className="rounded-2xl border border-slate-100 bg-ghs-surface p-4">
+            <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-ghs-teal shrink-0">
+                    {icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-extrabold text-ghs-deep">{title}</p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusTone}`}>
+                            {status}
+                        </span>
+                    </div>
+                    <select
+                        className="w-full h-11 mt-3 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium"
+                        value={staffKey || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                    >
+                        <option value="">Choose a staff member…</option>
+                        {roleGuesses.map((r) => (
+                            <option key={r.key} value={r.key}>
+                                {r.name}{r.rank ? ` · ${r.rank}` : ''}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function LegendCodeCard({ entry, setLegend }) {
+    const pending = entry.needsConfirm && !entry.userChecked;
+    const ok = entry.userChecked || (!entry.needsConfirm && (entry.meaning || entry.dutyKind === 'skip'));
+    const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
+    const isClinic = entry.meaning === 'Office' || dutyKind === 'clinic';
+    const canConfirm = Boolean(entry.meaning) || dutyKind === 'skip';
+    const needsUnit = entry.meaning === 'Office' && !String(entry.unit || '').trim();
+    const title = entry.meaning
+        ? displayMeaningLabel(entry.meaning)
+        : (entry.label || '?');
+    const subtitle = entry.codeHint || codePlainHint(entry.label) || '';
+
+    return (
+        <div
+            className={`rounded-2xl border p-4 ${
+                needsUnit && !ok
+                    ? 'border-amber-200 bg-amber-50/40'
+                    : ok
+                        ? 'border-slate-100 bg-white'
+                        : 'border-slate-100 bg-ghs-surface'
+            }`}
+        >
+            <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-ghs-teal/10 text-ghs-teal flex items-center justify-center text-sm font-extrabold shrink-0">
+                    {entry.label}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                        <div>
+                            <p className="text-sm font-extrabold text-ghs-deep">{title}</p>
+                            {subtitle ? (
+                                <p className="text-[11px] font-medium text-ghs-muted mt-0.5">{subtitle}</p>
+                            ) : null}
+                            {needsUnit && !ok ? (
+                                <p className="text-[11px] font-bold text-amber-800 mt-0.5">Needs a unit name</p>
+                            ) : null}
+                        </div>
+                        <button
+                            type="button"
+                            disabled={!canConfirm}
+                            onClick={() => toggleLegendConfirmed(setLegend, entry)}
+                            className={`shrink-0 h-9 px-3 rounded-xl text-xs font-extrabold border transition-colors disabled:opacity-40 ${
+                                ok
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                    : 'bg-white border-slate-200 text-ghs-deep hover:border-ghs-teal'
+                            }`}
+                        >
+                            {ok ? '✓ Confirmed' : '✓ Confirm'}
+                        </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                        <select
+                            className={`h-10 rounded-xl border bg-white px-3 text-sm font-semibold ${
+                                pending ? 'border-amber-300' : 'border-slate-200'
+                            }`}
+                            value={legendSelectValue(entry)}
+                            onChange={(ev) => applyLegendSelectValue(setLegend, entry, ev.target.value)}
+                            aria-label={`Meaning for code ${entry.label}`}
+                        >
+                            <option value="">Choose meaning…</option>
+                            <optgroup label="Off / leave">
+                                <option value="Leave">Leave</option>
+                                <option value="Off">Off</option>
+                                <option value="Holiday">Holiday</option>
+                            </optgroup>
+                            <optgroup label="Ward cover">
+                                <option value="Morning">Morning</option>
+                                <option value="Afternoon">Afternoon</option>
+                                <option value="Night">Night</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="Office">Clinic / OPD</option>
+                                <option value="__ignore__">Ignore this letter</option>
+                            </optgroup>
+                        </select>
+                        <input
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium"
+                            value={entry.unit || ''}
+                            placeholder="Unit name (optional)"
+                            aria-label={`Unit name for code ${entry.label}`}
+                            onChange={(ev) => setLegend(entry.label, {
+                                unit: ev.target.value,
+                                needsConfirm: pending ? true : entry.needsConfirm,
+                                userChecked: pending ? false : entry.userChecked,
+                            })}
+                        />
+                    </div>
+                    {isClinic && dutyKind !== 'skip' && (
+                        <div className="mt-3">
+                            <OfficeClinicPanel
+                                officeDays={entry.officeDays?.length ? entry.officeDays : defaultOfficeDays('Office')}
+                                dutyOverlaps={entry.dutyOverlaps?.length ? entry.dutyOverlaps : defaultDutyOverlaps('Office')}
+                                onChange={(patch) => setLegend(entry.label, {
+                                    ...patch,
+                                    dutyKind: 'clinic',
+                                    meaning: 'Office',
+                                    needsConfirm: true,
+                                    userChecked: false,
+                                })}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function WardSetupStep({
+    subStep = 0,
     draft,
     setDraft,
     wardName,
     hasSavedPack,
     pendingLabels = [],
-    pendingRoles = [],
     onStartFresh = null,
 }) {
-    const leaveCandidates = (draft.roleGuesses || []).filter((r) => r.leaveLikely || draft.leaveByKey?.[r.key]);
-    // Stable list order — edits/confirm must not jump rows to the bottom
-    const legendRows = draft.legend || [];
-    const pendingCount = pendingLabels.length;
-    const rolesEssential = Boolean(draft.rolesEssential);
-    const inchargePending = rolesEssential && !draft.inchargeStaffKey && !draft.inchargeSkipped;
-    const assistantPending = rolesEssential && !draft.assistantStaffKey && !draft.assistantSkipped;
+    const allStaff = draft.roleGuesses || [];
+    const leaveFromUpload = useMemo(
+        () => allStaff.filter((r) => r.leaveLikely || r.leaveType),
+        [allStaff]
+    );
+    const leaveRest = useMemo(() => {
+        const flaggedKeys = new Set(leaveFromUpload.map((r) => r.key));
+        return allStaff
+            .filter((r) => !flaggedKeys.has(r.key))
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }, [allStaff, leaveFromUpload]);
+    const leaveFromUploadSorted = useMemo(
+        () => [...leaveFromUpload].sort((a, b) => String(a.name).localeCompare(String(b.name))),
+        [leaveFromUpload]
+    );
+
+    const toggleLeave = (key, checked, defaultLeaveType = 'annual') => {
+        setDraft((d) => {
+            const next = { ...(d.leaveByKey || {}) };
+            if (checked) {
+                const person = allStaff.find((r) => r.key === key);
+                next[key] = {
+                    onLeave: true,
+                    leaveType: next[key]?.leaveType || person?.leaveType || defaultLeaveType,
+                };
+            } else {
+                delete next[key];
+            }
+            return { ...d, leaveByKey: next };
+        });
+    };
+
+    const setLeaveType = (key, leaveType) => {
+        setDraft((d) => ({
+            ...d,
+            leaveByKey: {
+                ...(d.leaveByKey || {}),
+                [key]: { onLeave: true, leaveType },
+            },
+        }));
+    };
+
+    const legendRows = useMemo(
+        () => [...(draft.legend || [])].sort((a, b) => String(a.label).localeCompare(String(b.label))),
+        [draft.legend]
+    );
+    const confirmedCount = legendRows.filter(
+        (e) => e.userChecked || (!e.needsConfirm && (e.meaning || e.dutyKind === 'skip'))
+    ).length;
 
     const setLegend = (label, patch) => {
         setDraft((d) => ({
@@ -1413,497 +1969,166 @@ function WardSetupStep({
         }));
     };
 
-    return (
-        <div className="space-y-5">
-            <div className={`rounded-2xl border px-4 py-3 ${
-                pendingRoles.length
-                    ? 'border-rose-300 bg-rose-50'
-                    : pendingCount
-                        ? 'border-amber-300 bg-amber-50'
-                        : 'border-ghs-teal/20 bg-ghs-teal/5'
-            }`}>
-                <p className="text-sm font-extrabold text-ghs-deep">
-                    {hasSavedPack ? 'Confirm new codes' : 'Ward setup'}
-                    {wardName ? ` · ${wardName}` : ''}
-                </p>
-                <p className="text-[11px] font-medium text-ghs-muted mt-1 leading-snug">
-                    {pendingRoles.length
-                        ? `Essential for this ward: set ${pendingRoles.join(' and ')} below. You can skip if you truly don’t know yet.`
-                        : pendingCount
-                            ? `${pendingCount} code${pendingCount === 1 ? '' : 's'} still need a check — edit freely, then press Confirm (or Skip). Rows stay in place.`
-                            : hasSavedPack
-                                ? 'We reused this ward’s saved legend and roles. Everything below looks checked.'
-                                : 'One-time for this ward — we save this so the next roster import is faster.'}
-                </p>
-                {onStartFresh ? (
-                    <button
-                        type="button"
-                        onClick={onStartFresh}
-                        className="mt-2 text-[11px] font-bold text-amber-800 hover:text-amber-950 underline underline-offset-2"
-                    >
-                        Reset / clear — start fresh from this file
-                    </button>
-                ) : null}
-            </div>
-
-            {rolesEssential && (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                        <p className="text-[10px] font-bold text-rose-700 uppercase tracking-widest ml-1">
-                            Essential roles
-                        </p>
-                        {(inchargePending || assistantPending) && (
-                            <span className="inline-flex items-center rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-rose-800">
-                                Needs check
-                            </span>
-                        )}
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                        <div className={`rounded-2xl p-3 ${
-                            inchargePending
-                                ? 'bg-rose-50 ring-2 ring-rose-300 border border-rose-200'
-                                : 'bg-emerald-50/60 border border-emerald-100'
-                        }`}>
-                            <label className="text-[10px] font-bold uppercase tracking-widest ml-0.5 text-rose-800">
-                                Ward in-charge
-                            </label>
-                            <select
-                                className={`w-full h-11 mt-1 rounded-xl border bg-white px-3 text-sm ${
-                                    inchargePending ? 'border-rose-300 ring-2 ring-rose-100' : 'border-slate-100'
-                                }`}
-                                value={draft.inchargeStaffKey || ''}
-                                onChange={(e) => setDraft((d) => ({
-                                    ...d,
-                                    inchargeStaffKey: e.target.value,
-                                    inchargeSkipped: false,
-                                    inchargeChecked: true,
-                                }))}
-                            >
-                                <option value="">— pick in-charge —</option>
-                                {(draft.roleGuesses || []).map((r) => (
-                                    <option key={r.key} value={r.key}>
-                                        {r.name}{r.rank ? ` · ${r.rank}` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            {inchargePending && (
-                                <button
-                                    type="button"
-                                    className="mt-2 text-[10px] font-bold text-ghs-muted hover:text-ghs-teal"
-                                    onClick={() => setDraft((d) => ({
-                                        ...d,
-                                        inchargeStaffKey: '',
-                                        inchargeSkipped: true,
-                                        inchargeChecked: true,
-                                    }))}
-                                >
-                                    Skip for now
-                                </button>
-                            )}
-                            {!inchargePending && (
-                                <p className="mt-1.5 text-[10px] font-bold text-emerald-700">
-                                    {draft.inchargeSkipped ? 'Skipped' : 'Looks good'}
-                                </p>
-                            )}
-                        </div>
-                        <div className={`rounded-2xl p-3 ${
-                            assistantPending
-                                ? 'bg-rose-50 ring-2 ring-rose-300 border border-rose-200'
-                                : 'bg-emerald-50/60 border border-emerald-100'
-                        }`}>
-                            <label className="text-[10px] font-bold uppercase tracking-widest ml-0.5 text-rose-800">
-                                Assistant
-                            </label>
-                            <select
-                                className={`w-full h-11 mt-1 rounded-xl border bg-white px-3 text-sm ${
-                                    assistantPending ? 'border-rose-300 ring-2 ring-rose-100' : 'border-slate-100'
-                                }`}
-                                value={draft.assistantStaffKey || ''}
-                                onChange={(e) => setDraft((d) => ({
-                                    ...d,
-                                    assistantStaffKey: e.target.value,
-                                    assistantSkipped: false,
-                                    assistantChecked: true,
-                                }))}
-                            >
-                                <option value="">— pick assistant —</option>
-                                {(draft.roleGuesses || []).map((r) => (
-                                    <option key={r.key} value={r.key}>
-                                        {r.name}{r.rank ? ` · ${r.rank}` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            {assistantPending && (
-                                <button
-                                    type="button"
-                                    className="mt-2 text-[10px] font-bold text-ghs-muted hover:text-ghs-teal"
-                                    onClick={() => setDraft((d) => ({
-                                        ...d,
-                                        assistantStaffKey: '',
-                                        assistantSkipped: true,
-                                        assistantChecked: true,
-                                    }))}
-                                >
-                                    Skip for now
-                                </button>
-                            )}
-                            {!assistantPending && (
-                                <p className="mt-1.5 text-[10px] font-bold text-emerald-700">
-                                    {draft.assistantSkipped ? 'Skipped' : 'Looks good'}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {legendRows.length > 0 && (
+    if (subStep === 0) {
+        return (
+            <div className="space-y-4">
                 <div>
-                    <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">Legend</p>
-                    <p className="text-[11px] font-medium text-ghs-muted mb-2 ml-1 leading-snug">
-                        <span className="font-bold">P</span> = Polyclinic · <span className="font-bold">Clinic / OPD</span> (8–2).
-                        {' '}<span className="font-bold">XM</span> = General X-ray · Morning,
-                        {' '}<span className="font-bold">XA</span> = General X-ray · Afternoon,
-                        {' '}<span className="font-bold">XN</span> = General X-ray · Night.
-                        {' '}Plain <span className="font-bold">M / A / N</span> are ward cover.
-                        {' '}Unclear codes: pick Clinic / OPD, ward shift, or off/leave, then Confirm.
+                    <h4 className="text-base font-extrabold text-ghs-deep">Who runs this ward?</h4>
+                    <p className="text-sm font-medium text-ghs-muted mt-1">
+                        Pick the in-charge and assistant. Not sure yet? You can skip and set this later.
                     </p>
-                    <div className="overflow-auto max-h-[32vh] border border-slate-100 rounded-2xl">
-                        <table className="min-w-full text-xs">
-                            <thead className="bg-slate-50 sticky top-0">
-                                <tr className="text-left text-[10px] uppercase tracking-wider text-ghs-muted">
-                                    <th className="p-2">Status</th>
-                                    <th className="p-2">Code</th>
-                                    <th className="p-2">Meaning</th>
-                                    <th className="p-2">Name / unit</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {legendRows.map((e) => {
-                                    const pending = e.needsConfirm && !e.userChecked;
-                                    const ok = e.userChecked || (!e.needsConfirm && e.meaning);
-                                    const isClinic = e.meaning === 'Office' || e.dutyKind === 'clinic';
-                                    const dutyKind = e.dutyKind || kindFromMeaning(e.meaning || '');
-                                    const canConfirm = Boolean(e.meaning) || dutyKind === 'skip';
-                                    const confirmLabel = dutyKind === 'skip'
-                                        ? 'Confirm skip'
-                                        : `Confirm “${displayMeaningLabel(e.meaning) || e.meaning}”`;
+                    {onStartFresh ? (
+                        <button
+                            type="button"
+                            onClick={onStartFresh}
+                            className="mt-2 text-[11px] font-bold text-ghs-teal hover:underline underline-offset-2"
+                        >
+                            Reset saved setup from this file
+                        </button>
+                    ) : null}
+                </div>
+                <div className="space-y-3">
+                    <SetupRoleCard
+                        title="Ward in-charge"
+                        staffKey={draft.inchargeStaffKey}
+                        skipped={draft.inchargeSkipped}
+                        roleGuesses={draft.roleGuesses || []}
+                        icon={(
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                        )}
+                        onChange={(key) => setDraft((d) => ({
+                            ...d,
+                            inchargeStaffKey: key,
+                            inchargeSkipped: false,
+                            inchargeChecked: true,
+                        }))}
+                    />
+                    <SetupRoleCard
+                        title="Assistant in-charge"
+                        staffKey={draft.assistantStaffKey}
+                        skipped={draft.assistantSkipped}
+                        roleGuesses={draft.roleGuesses || []}
+                        icon={(
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                        )}
+                        onChange={(key) => setDraft((d) => ({
+                            ...d,
+                            assistantStaffKey: key,
+                            assistantSkipped: false,
+                            assistantChecked: true,
+                        }))}
+                    />
+                </div>
+            </div>
+        );
+    }
 
-                                    const applyMeaning = (meaning, kindOverride) => {
-                                        const kind = kindOverride || kindFromMeaning(meaning) || dutyKind;
-                                        setLegend(e.label, {
-                                            meaning,
-                                            dutyKind: kind,
-                                            dutyOverlaps: defaultDutyOverlaps(meaning),
-                                            officeDays: meaning === 'Office'
-                                                ? (e.officeDays?.length
-                                                    ? e.officeDays
-                                                    : defaultOfficeDays('Office'))
-                                                : [],
-                                            outsideMorning: meaning === 'Office'
-                                                ? Boolean(e.outsideMorning)
-                                                : false,
-                                            needsConfirm: true,
-                                            userChecked: false,
-                                        });
-                                    };
-
-                                    const applyKind = (kind) => {
-                                        if (kind === 'clinic') {
-                                            applyMeaning('Office', 'clinic');
-                                            return;
-                                        }
-                                        if (kind === 'skip') {
-                                            setLegend(e.label, {
-                                                dutyKind: 'skip',
-                                                meaning: '',
-                                                dutyOverlaps: [],
-                                                officeDays: [],
-                                                outsideMorning: false,
-                                                needsConfirm: true,
-                                                userChecked: false,
-                                            });
-                                            return;
-                                        }
-                                        if (kind === 'ward') {
-                                            setLegend(e.label, {
-                                                dutyKind: 'ward',
-                                                meaning: ['Morning', 'Afternoon', 'Night'].includes(e.meaning)
-                                                    ? e.meaning
-                                                    : '',
-                                                officeDays: [],
-                                                outsideMorning: false,
-                                                dutyOverlaps: ['Morning', 'Afternoon', 'Night'].includes(e.meaning)
-                                                    ? defaultDutyOverlaps(e.meaning)
-                                                    : [],
-                                                needsConfirm: true,
-                                                userChecked: false,
-                                            });
-                                            return;
-                                        }
-                                        if (kind === 'off') {
-                                            setLegend(e.label, {
-                                                dutyKind: 'off',
-                                                meaning: ['Off', 'Holiday', 'Leave'].includes(e.meaning)
-                                                    ? e.meaning
-                                                    : '',
-                                                officeDays: [],
-                                                outsideMorning: false,
-                                                dutyOverlaps: [],
-                                                needsConfirm: true,
-                                                userChecked: false,
-                                            });
-                                        }
-                                    };
-
-                                    return (
-                                        <tr
-                                            key={e.label}
-                                            className={
-                                                pending
-                                                    ? 'bg-amber-50 ring-1 ring-inset ring-amber-200'
-                                                    : ok
-                                                        ? 'bg-emerald-50/50'
-                                                        : ''
-                                            }
-                                        >
-                                            <td className="p-2 whitespace-nowrap">
-                                                {pending ? (
-                                                    <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-800">
-                                                        Needs check
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                                                        Looks good
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="p-2">
-                                                <span className="block font-extrabold text-ghs-deep">{e.label}</span>
-                                                {(e.codeHint || codePlainHint(e.label)) ? (
-                                                    <span className="block text-[10px] font-medium text-ghs-muted mt-0.5 leading-snug max-w-[9rem]">
-                                                        {e.codeHint || codePlainHint(e.label)}
-                                                    </span>
-                                                ) : null}
-                                            </td>
-                                            <td className="p-2 min-w-[160px] md:min-w-[260px]">
-                                                {pending && (
-                                                    <LegendKindChooser
-                                                        dutyKind={dutyKind}
-                                                        meaning={e.meaning || ''}
-                                                        onKindChange={applyKind}
-                                                        onMeaningChange={(m) => applyMeaning(m)}
-                                                    />
-                                                )}
-                                                {dutyKind !== 'skip' && (
-                                                    <MeaningPicker
-                                                        value={e.meaning || ''}
-                                                        pending={pending}
-                                                        detectedUnit={e.unit || ''}
-                                                        onChange={(meaning) => applyMeaning(meaning)}
-                                                    />
-                                                )}
-                                                {isClinic && dutyKind !== 'skip' && (
-                                                    <OfficeClinicPanel
-                                                        officeDays={e.officeDays?.length
-                                                            ? e.officeDays
-                                                            : defaultOfficeDays('Office')}
-                                                        dutyOverlaps={e.dutyOverlaps?.length
-                                                            ? e.dutyOverlaps
-                                                            : defaultDutyOverlaps('Office')}
-                                                        onChange={(patch) => setLegend(e.label, {
-                                                            ...patch,
-                                                            dutyKind: 'clinic',
-                                                            meaning: 'Office',
-                                                            needsConfirm: true,
-                                                            userChecked: false,
-                                                        })}
-                                                    />
-                                                )}
-                                                {(pending || !e.userChecked) && (
-                                                    <div className="mt-1.5 space-y-1.5">
-                                                        <input
-                                                            className="w-full h-8 rounded-lg border border-slate-100 bg-white px-2 text-[11px] font-medium"
-                                                            value={e.legendNote || ''}
-                                                            placeholder="Your note (optional) — e.g. only Mon & Wed clinic"
-                                                            onChange={(ev) => setLegend(e.label, {
-                                                                legendNote: ev.target.value,
-                                                            })}
-                                                        />
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {canConfirm ? (
-                                                                <button
-                                                                    type="button"
-                                                                    className="text-[10px] font-bold text-ghs-teal hover:underline"
-                                                                    onClick={() => setLegend(e.label, {
-                                                                        needsConfirm: false,
-                                                                        userChecked: true,
-                                                                        dutyKind: dutyKind === 'skip'
-                                                                            ? 'skip'
-                                                                            : (kindFromMeaning(e.meaning) || dutyKind),
-                                                                        meaning: dutyKind === 'skip' ? '' : e.meaning,
-                                                                    })}
-                                                                >
-                                                                    {confirmLabel}
-                                                                </button>
-                                                            ) : null}
-                                                            <button
-                                                                type="button"
-                                                                className="text-[10px] font-bold text-ghs-muted hover:text-ghs-teal"
-                                                                onClick={() => setLegend(e.label, {
-                                                                    meaning: '',
-                                                                    dutyKind: 'skip',
-                                                                    dutyOverlaps: [],
-                                                                    officeDays: [],
-                                                                    outsideMorning: false,
-                                                                    needsConfirm: false,
-                                                                    userChecked: true,
-                                                                })}
-                                                            >
-                                                                Skip this code
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="p-2 align-top min-w-[10rem]">
-                                                <label className="block text-[9px] font-bold uppercase tracking-widest text-ghs-muted mb-0.5">
-                                                    Name / unit
-                                                </label>
-                                                <input
-                                                    className={`w-full min-h-9 rounded-lg border bg-white px-2 py-1.5 text-xs font-medium ${
-                                                        pending && !String(e.unit || '').trim()
-                                                            ? 'border-amber-300 ring-2 ring-amber-100'
-                                                            : 'border-slate-100'
-                                                    }`}
-                                                    value={e.unit || ''}
-                                                    placeholder={
-                                                        pending
-                                                            ? 'Type name if unknown — Antenatal, Ultrasound…'
-                                                            : 'e.g. General X-ray'
-                                                    }
-                                                    aria-label={`Name or unit for code ${e.label}`}
-                                                    onChange={(ev) => setLegend(e.label, {
-                                                        unit: ev.target.value,
-                                                        needsConfirm: pending ? true : e.needsConfirm,
-                                                        userChecked: pending ? false : e.userChecked,
-                                                    })}
-                                                />
-                                                <p className="text-[10px] font-medium text-ghs-muted mt-0.5 leading-snug">
-                                                    {e.unit
-                                                        ? 'Editable — change if the file name is wrong.'
-                                                        : 'We don’t know the name yet — type it here.'}
-                                                </p>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+    if (subStep === 1) {
+        return (
+            <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h4 className="text-base font-extrabold text-ghs-deep">What do the roster letters mean?</h4>
+                        <p className="text-sm font-medium text-ghs-muted mt-1">
+                            Confirm each code. Add a unit name where it applies.
+                        </p>
                     </div>
-                    {hasSavedPack && (
-                        <p className="text-[11px] font-medium text-ghs-muted mt-2">
-                            Known codes from the ward pack stay marked Looks good unless they need a new meaning.
+                    {legendRows.length > 0 && (
+                        <p className="text-sm font-bold text-ghs-muted shrink-0 pt-0.5">
+                            {confirmedCount}/{legendRows.length} confirmed
                         </p>
                     )}
                 </div>
-            )}
-
-            {!legendRows.length && (
-                <p className="text-xs font-medium text-ghs-muted">All codes already mapped for this ward.</p>
-            )}
-
-            {!rolesEssential && (
-                <div className="grid sm:grid-cols-2 gap-3">
-                    <div>
-                        <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">Ward in-charge</label>
-                        <select
-                            className="w-full h-11 mt-1 rounded-xl border border-slate-100 bg-ghs-surface px-3 text-sm"
-                            value={draft.inchargeStaffKey || ''}
-                            onChange={(e) => setDraft((d) => ({
-                                ...d,
-                                inchargeStaffKey: e.target.value,
-                                inchargeChecked: true,
-                            }))}
-                        >
-                            <option value="">— optional —</option>
-                            {(draft.roleGuesses || []).map((r) => (
-                                <option key={r.key} value={r.key}>
-                                    {r.name}{r.rank ? ` · ${r.rank}` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1">Assistant</label>
-                        <select
-                            className="w-full h-11 mt-1 rounded-xl border border-slate-100 bg-ghs-surface px-3 text-sm"
-                            value={draft.assistantStaffKey || ''}
-                            onChange={(e) => setDraft((d) => ({ ...d, assistantStaffKey: e.target.value }))}
-                        >
-                            <option value="">— optional —</option>
-                            {(draft.roleGuesses || []).map((r) => (
-                                <option key={r.key} value={r.key}>
-                                    {r.name}{r.rank ? ` · ${r.rank}` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="rounded-2xl border border-ghs-teal/20 bg-ghs-teal/5 px-4 py-3 flex gap-2 text-[11px] font-medium text-ghs-deep leading-snug">
+                    <span className="text-ghs-teal font-extrabold shrink-0" aria-hidden>i</span>
+                    <span>
+                        <span className="font-bold">P</span> = Polyclinic ·{' '}
+                        <span className="font-bold">XM / XA / XN</span> = X-ray morning / afternoon / night ·{' '}
+                        <span className="font-bold">M / A / N</span> = ward cover
+                    </span>
                 </div>
-            )}
+                {legendRows.length > 0 ? (
+                    <div className="space-y-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-1">
+                        {legendRows.map((e) => (
+                            <LegendCodeCard key={e.label} entry={e} setLegend={setLegend} />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-sm font-medium text-ghs-muted">
+                        All codes already mapped for {wardName || 'this ward'}.
+                        {hasSavedPack ? ' Continue to leave.' : ''}
+                    </p>
+                )}
+                {pendingLabels.length > 0 && (
+                    <p className="text-[11px] font-bold text-amber-800">
+                        {pendingLabels.length} code{pendingLabels.length === 1 ? '' : 's'} still need confirmation.
+                    </p>
+                )}
+            </div>
+        );
+    }
 
-            {leaveCandidates.length > 0 && (
-                <div>
-                    <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">Leave rows</p>
-                    <LeaveLegendPanel />
-                    <div className="space-y-2">
-                        {leaveCandidates.map((r) => {
-                            const leave = draft.leaveByKey?.[r.key];
-                            return (
-                                <label key={r.key} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 bg-ghs-surface">
-                                    <input
-                                        type="checkbox"
-                                        className="accent-ghs-teal"
-                                        checked={Boolean(leave?.onLeave)}
-                                        onChange={(e) => {
-                                            setDraft((d) => {
-                                                const next = { ...(d.leaveByKey || {}) };
-                                                if (e.target.checked) {
-                                                    next[r.key] = { onLeave: true, leaveType: next[r.key]?.leaveType || r.leaveType || 'annual' };
-                                                } else {
-                                                    delete next[r.key];
-                                                }
-                                                return { ...d, leaveByKey: next };
-                                            });
-                                        }}
+    return (
+        <div className="space-y-4">
+            <div>
+                <h4 className="text-base font-extrabold text-ghs-deep">Who&apos;s on leave?</h4>
+                <p className="text-sm font-medium text-ghs-muted mt-1">
+                    Everyone from this import is listed. We pre-tick people your roster marked on leave — untick if
+                    that&apos;s wrong, or tick anyone else who should be on leave.
+                </p>
+            </div>
+            <LeaveLegendPanel />
+            {allStaff.length > 0 ? (
+                <div className="space-y-4 max-h-[min(52vh,28rem)] overflow-y-auto pr-1">
+                    {leaveFromUploadSorted.length > 0 && (
+                        <div>
+                            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">
+                                On leave in uploaded roster
+                            </p>
+                            <div className="rounded-2xl border border-ghs-teal/25 overflow-hidden divide-y divide-slate-100 bg-ghs-teal/[0.03]">
+                                {leaveFromUploadSorted.map((r) => (
+                                    <SetupLeaveStaffRow
+                                        key={r.key}
+                                        person={r}
+                                        leave={draft.leaveByKey?.[r.key]}
+                                        onToggle={toggleLeave}
+                                        onLeaveTypeChange={setLeaveType}
                                     />
-                                    <span className="flex-1 text-sm font-bold text-ghs-deep">{r.name}</span>
-                                    {leave?.onLeave && (
-                                        <select
-                                            className="h-9 rounded-lg border border-slate-100 bg-white px-2 text-xs"
-                                            value={leave.leaveType || 'annual'}
-                                            onChange={(e) => {
-                                                setDraft((d) => ({
-                                                    ...d,
-                                                    leaveByKey: {
-                                                        ...(d.leaveByKey || {}),
-                                                        [r.key]: { onLeave: true, leaveType: e.target.value },
-                                                    },
-                                                }));
-                                            }}
-                                        >
-                                            {LEAVE_LEGEND.map((item) => (
-                                                <option key={item.key} value={item.key}>
-                                                    {item.label} · {item.days}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                </label>
-                            );
-                        })}
-                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {leaveRest.length > 0 && (
+                        <div>
+                            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">
+                                {leaveFromUploadSorted.length > 0 ? 'Everyone else' : 'All staff'}
+                            </p>
+                            <div className="rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                                {leaveRest.map((r) => (
+                                    <SetupLeaveStaffRow
+                                        key={r.key}
+                                        person={r}
+                                        leave={draft.leaveByKey?.[r.key]}
+                                        onToggle={toggleLeave}
+                                        onLeaveTypeChange={setLeaveType}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
+            ) : (
+                <p className="text-sm font-medium text-ghs-muted rounded-2xl border border-slate-100 bg-ghs-surface p-4">
+                    No staff rows in this import.
+                </p>
             )}
         </div>
     );
