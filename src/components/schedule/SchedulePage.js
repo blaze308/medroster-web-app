@@ -179,7 +179,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                         <button
                             onClick={() => router.push(`/hospital/${hospitalId}`)}
-                            className="w-10 h-10 shrink-0 rounded-xl bg-ghs-surface text-ghs-muted hover:text-ghs-teal flex items-center justify-center transition-all"
+                            className="w-10 h-10 shrink-0 rounded-xl bg-ghs-surface text-ghs-muted hover:text-ghs-teal flex items-center justify-center transition-all cursor-pointer"
                             aria-label="Back"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -214,9 +214,10 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                             Use preferences
                         </label>
                         <button
+                            data-tour="schedule-auto-generate"
                             onClick={handleGenerate}
                             disabled={generating}
-                            className="h-10 px-5 rounded-xl bg-ghs-teal text-white text-xs font-bold hover:bg-ghs-teal-hover shadow-md shadow-ghs-teal/10 flex items-center gap-2 disabled:opacity-50"
+                            className="h-10 px-5 rounded-xl bg-ghs-teal text-white text-xs font-bold hover:bg-ghs-teal-hover shadow-md shadow-ghs-teal/10 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             {generating ? (
                                 <>
@@ -231,9 +232,10 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                         )}
                         <div className="relative">
                             <button
+                                data-tour="schedule-export"
                                 onClick={() => setExportOpen((v) => !v)}
                                 disabled={exporting}
-                                className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-teal text-xs font-bold hover:bg-ghs-teal-light flex items-center gap-2 disabled:opacity-50 transition-all"
+                                className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-teal text-xs font-bold hover:bg-ghs-teal-light flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                                 title="Export roster"
                             >
                                 {exporting ? (
@@ -258,7 +260,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                                             <button
                                                 key={fmt}
                                                 type="button"
-                                                className="w-full px-4 py-2.5 text-left text-xs font-bold text-ghs-deep hover:bg-slate-50 uppercase"
+                                                className="w-full px-4 py-2.5 text-left text-xs font-bold text-ghs-deep hover:bg-slate-50 uppercase cursor-pointer"
                                                 onClick={() => handleExport(fmt)}
                                             >
                                                 {fmt === 'excel' ? 'Excel (.xlsx)' : fmt}
@@ -272,13 +274,14 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                         <>
                         <button
                             onClick={handleClearAll}
-                            className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-muted text-xs font-bold hover:bg-slate-50"
+                            className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-ghs-muted text-xs font-bold hover:bg-slate-50 cursor-pointer"
                         >
                             Clear All
                         </button>
                         <button
+                            data-tour="schedule-settings"
                             onClick={() => setShowSettings(true)}
-                            className="h-10 w-10 rounded-xl bg-white border border-slate-200 text-ghs-muted hover:text-ghs-teal flex items-center justify-center"
+                            className="h-10 w-10 rounded-xl bg-white border border-slate-200 text-ghs-muted hover:text-ghs-teal flex items-center justify-center cursor-pointer"
                             aria-label="Settings"
                             title="Settings"
                         >
@@ -298,7 +301,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                 </div>
             </header>
 
-            <main className="px-4 md:px-10 py-4 md:py-6 pb-28 md:pb-6">
+            <main className="px-4 md:px-10 py-4 md:py-6 pb-28 md:pb-6" data-tour="schedule-calendar">
                 <CalendarGrid
                     startDate={schedule.startDate}
                     endDate={schedule.endDate}

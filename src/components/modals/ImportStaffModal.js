@@ -236,6 +236,13 @@ function UnifiedImportModal({
         return () => clearTimeout(t);
     }, [toast]);
 
+    useEffect(() => {
+        const root = document.documentElement;
+        if (reading) root.classList.add('mr-reading');
+        else root.classList.remove('mr-reading');
+        return () => root.classList.remove('mr-reading');
+    }, [reading]);
+
     const activeWard = useMemo(
         () => wards.find((w) => String(w._id) === String(defaultWardId)),
         [wards, defaultWardId]
@@ -692,8 +699,11 @@ function UnifiedImportModal({
                 aria-live="polite"
                 aria-busy="true"
             >
-                <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-synclly-lg backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="w-5 h-5 shrink-0 rounded-full border-2 border-slate-200 border-t-ghs-teal animate-spin" />
+                <div className="mr-pop-in pointer-events-auto cursor-wait flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-synclly-lg backdrop-blur-md">
+                    <div className="relative w-6 h-6 shrink-0">
+                        <div className="absolute inset-0 rounded-full bg-ghs-teal/15 animate-pulse" />
+                        <div className="absolute inset-0.5 rounded-full border-2 border-slate-200 border-t-ghs-teal animate-spin" />
+                    </div>
                     <div className="min-w-0 text-left">
                         <p className="text-sm font-extrabold text-ghs-deep truncate">Reading roster…</p>
                         <p className="text-[11px] font-medium text-ghs-muted truncate mt-0.5">
@@ -706,7 +716,7 @@ function UnifiedImportModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+        <div className="mr-fade fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
             {toast && (
                 <div
                     className={`fixed top-4 left-4 right-4 md:left-auto md:right-6 md:top-20 z-[60] md:max-w-md px-4 md:px-5 py-3 rounded-2xl shadow-lg border text-sm font-bold ${
@@ -720,7 +730,7 @@ function UnifiedImportModal({
                     {toast.message}
                 </div>
             )}
-            <div className={`bg-white rounded-2xl md:rounded-[28px] shadow-xl w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 max-h-[94vh] overflow-y-auto ${
+            <div className={`mr-pop-in bg-white rounded-2xl md:rounded-[28px] shadow-xl w-full max-w-[calc(100vw-1.5rem)] p-4 sm:p-6 max-h-[94vh] overflow-y-auto ${
                 step === 'review'
                     ? 'md:max-w-6xl'
                     : step === 'setup' || (step === 'review' && showGrid)
@@ -1018,7 +1028,7 @@ function LegendKindChooser({
                             type="button"
                             title={o.hint}
                             onClick={() => onKindChange(o.value)}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
                                 active
                                     ? 'bg-ghs-teal text-white'
                                     : 'bg-slate-100 text-ghs-muted hover:bg-slate-200 hover:text-ghs-deep'
@@ -1042,7 +1052,7 @@ function LegendKindChooser({
                                     key={shift}
                                     type="button"
                                     onClick={() => onMeaningChange(shift)}
-                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
                                         active
                                             ? 'bg-ghs-deep text-white'
                                             : 'bg-white border border-slate-200 text-ghs-muted hover:border-ghs-teal hover:text-ghs-deep'
@@ -1068,7 +1078,7 @@ function LegendKindChooser({
                                     key={m}
                                     type="button"
                                     onClick={() => onMeaningChange(m)}
-                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
                                         active
                                             ? 'bg-ghs-deep text-white'
                                             : 'bg-white border border-slate-200 text-ghs-muted hover:border-ghs-teal hover:text-ghs-deep'
@@ -1154,7 +1164,7 @@ function OfficeClinicPanel({
                             key={o.value}
                             type="button"
                             onClick={() => toggleDay(o.value)}
-                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
                                 active
                                     ? 'bg-ghs-teal text-white'
                                     : 'bg-slate-100 text-ghs-muted hover:bg-slate-200 hover:text-ghs-deep'
@@ -1191,11 +1201,11 @@ function OfficeClinicPanel({
                                     disabled={locked}
                                     title={locked ? 'Clinic / OPD always includes Morning' : `Toggle ${shift}`}
                                     onClick={() => toggleExtraShift(shift)}
-                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors cursor-pointer ${
                                         active
                                             ? 'bg-ghs-teal text-white'
                                             : 'bg-slate-100 text-ghs-muted hover:bg-slate-200 hover:text-ghs-deep'
-                                    } ${locked ? 'opacity-90 cursor-default' : ''}`}
+                                    } ${locked ? 'opacity-90 cursor-not-allowed' : ''}`}
                                 >
                                     {shift}{locked ? ' (always)' : ''}
                                 </button>
@@ -1925,7 +1935,7 @@ function FileDropZone({ accept, file, onFile, title, hint }) {
                     setDragging(false);
                     pick(e.dataTransfer.files?.[0] || null);
                 }}
-                className={`w-full rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                className={`w-full rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors cursor-pointer ${
                     dragging
                         ? 'border-ghs-teal bg-ghs-teal/10'
                         : file

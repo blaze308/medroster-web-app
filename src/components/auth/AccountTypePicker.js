@@ -25,7 +25,7 @@ export default function AccountTypePicker({ value, onChange }) {
                         key={opt.id}
                         type="button"
                         onClick={() => onChange(opt.id)}
-                        className={`text-left p-4 rounded-2xl border transition-all ${
+                        className={`text-left p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.99] ${
                             value === opt.id
                                 ? 'border-ghs-teal bg-ghs-teal/5 ring-2 ring-ghs-teal/20'
                                 : 'border-slate-100 bg-ghs-surface hover:border-slate-200'

@@ -93,14 +93,14 @@ export default function ValidationPanel({ hospitalId, scheduleId, dataVersion })
     const hasWarningsOnly = isValid && warningCount > 0;
 
     return (
-        <div className="fixed inset-x-0 bottom-0 z-40 w-full md:inset-x-auto md:bottom-6 md:right-6 md:w-[360px] md:max-w-[calc(100vw-3rem)]">
+        <div className="fixed inset-x-0 bottom-0 z-40 w-full md:inset-x-auto md:bottom-6 md:right-6 md:w-[360px] md:max-w-[calc(100vw-3rem)]" data-tour="validation-panel">
             <div className={`bg-white rounded-t-2xl md:rounded-[24px] border border-b-0 md:border-b shadow-synclly-lg overflow-hidden transition-all ${
                 !isValid ? 'border-rose-100' : hasWarningsOnly ? 'border-amber-100' : 'border-emerald-100'
             }`}>
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    className="w-full p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/50"
+                    className="w-full p-4 md:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/50 cursor-pointer"
                 >
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${

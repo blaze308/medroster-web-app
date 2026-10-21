@@ -304,27 +304,30 @@ export default function SandboxScheduleShell({
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
+                            data-tour="import-staff"
                             onClick={() => setShowImport(true)}
-                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left bg-white"
+                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left bg-white cursor-pointer"
                         >
                             <span className="block">Import staff data</span>
                             <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
                         </button>
                         <button
                             type="button"
+                            data-tour="auto-generate"
                             disabled={generating || !staff.length || generatableCount <= 0}
                             onClick={handleGenerate}
                             title={generatableCount
                                 ? `${generatableCount} empty cover slot${generatableCount === 1 ? '' : 's'} can be filled`
                                 : 'No empty Morning / Afternoon / Night slots to fill'}
-                            className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold disabled:opacity-50 bg-white"
+                            className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed bg-white cursor-pointer"
                         >
                             {generating ? 'Generating…' : `Auto-generate (${generatableCount})`}
                         </button>
                         <button
                             type="button"
+                            data-tour="rule-flex"
                             onClick={openRuleModes}
-                            className="h-11 px-4 rounded-xl border text-sm font-bold text-ghs-muted bg-white"
+                            className="h-11 px-4 rounded-xl border text-sm font-bold text-ghs-muted bg-white cursor-pointer"
                             title="Flexible vs Hardened guidelines"
                         >
                             Rule flexibility
@@ -333,7 +336,7 @@ export default function SandboxScheduleShell({
                             type="button"
                             disabled={!assignments.length}
                             onClick={handleClearAll}
-                            className="h-11 px-4 rounded-xl border text-sm font-bold text-ghs-muted bg-white disabled:opacity-50"
+                            className="h-11 px-4 rounded-xl border text-sm font-bold text-ghs-muted bg-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             Clear shifts
                         </button>
@@ -341,7 +344,7 @@ export default function SandboxScheduleShell({
                             <button
                                 type="button"
                                 onClick={handleResetSetup}
-                                className="h-11 px-4 rounded-xl border border-amber-200 text-amber-900 text-sm font-bold bg-amber-50"
+                                className="h-11 px-4 rounded-xl border border-amber-200 text-amber-900 text-sm font-bold bg-amber-50 cursor-pointer"
                                 title="Clear saved setup, and optionally shifts or staff"
                             >
                                 Reset / clear
@@ -350,9 +353,10 @@ export default function SandboxScheduleShell({
                         <div className="relative">
                             <button
                                 type="button"
+                                data-tour="export-roster"
                                 disabled={exporting}
                                 onClick={() => setExportOpen((v) => !v)}
-                                className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50"
+                                className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
                                 {exporting ? 'Exporting…' : 'Export ▾'}
                             </button>
@@ -400,7 +404,7 @@ export default function SandboxScheduleShell({
                     </div>
                 )}
 
-                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6 space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6 space-y-4" data-tour="roster-period">
                     <div className="grid sm:grid-cols-3 gap-3">
                         <div>
                             <label className="text-[10px] font-bold text-ghs-muted uppercase">Ward / title</label>
@@ -440,7 +444,7 @@ export default function SandboxScheduleShell({
                 </div>
 
                 {schedule?.startDate && schedule?.endDate && (
-                    <div className="mb-6">
+                    <div className="mb-6" data-tour="roster-calendar">
                         <CalendarGrid
                             startDate={schedule.startDate}
                             endDate={schedule.endDate}
@@ -453,7 +457,7 @@ export default function SandboxScheduleShell({
                     </div>
                 )}
 
-                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6">
+                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6" data-tour="roster-staff">
                     <h2 className="font-extrabold text-ghs-deep mb-3">Staff</h2>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
                         <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="First name" value={newFirst} onChange={(e) => setNewFirst(e.target.value)} />

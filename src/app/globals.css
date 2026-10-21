@@ -100,7 +100,7 @@ h4 {
 }
 
 .sidebar-item {
-  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all;
+  @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer;
 }
 
 .sidebar-item-active {
@@ -109,7 +109,7 @@ h4 {
 
 /* Standard Buttons */
 .btn {
-  @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all active:scale-95;
+  @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-primary {
@@ -118,4 +118,94 @@ h4 {
 
 .btn-secondary {
   @apply bg-white text-synclly-muted border border-slate-200 hover:bg-slate-50 shadow-sm;
+}
+
+/* Motion + cursor primitives */
+@keyframes mr-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mr-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mr-slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mr-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes mr-spin-ring {
+  to { transform: rotate(360deg); }
+}
+
+.mr-enter {
+  animation: mr-slide-up 320ms ease-out both;
+}
+
+.mr-enter-slow {
+  animation: mr-slide-up 480ms ease-out both;
+}
+
+.mr-delay-1 { animation-delay: 80ms; }
+.mr-delay-2 { animation-delay: 160ms; }
+.mr-delay-3 { animation-delay: 240ms; }
+.mr-delay-4 { animation-delay: 360ms; }
+
+.mr-pop-in {
+  animation: mr-pop 280ms ease-out both;
+}
+
+.mr-fade {
+  animation: mr-fade-in 240ms ease-out both;
+}
+
+.mr-interactive {
+  @apply cursor-pointer transition-all active:scale-[0.98];
+}
+
+html.mr-reading,
+html.mr-reading * {
+  cursor: wait !important;
+}
+
+/* Driver.js product tour — MedRoster / GHS teal */
+.medroster-driver-popover.driver-popover {
+  --driver-popover-bg: #ffffff;
+  --driver-popover-color: #0f1f2e;
+  --driver-popover-border: #e2e8f0;
+  --driver-popover-title-color: #0f1f2e;
+  --driver-popover-description-color: #556370;
+  --driver-popover-arrow-color: #ffffff;
+  font-family: var(--font-jakarta);
+}
+
+.medroster-driver-popover .driver-popover-title {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.medroster-driver-popover .driver-popover-description {
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.medroster-driver-popover .driver-popover-next-btn,
+.medroster-driver-popover .driver-popover-prev-btn {
+  background-color: #006b6b !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+.medroster-driver-popover .driver-popover-close-btn {
+  color: #556370 !important;
 }

@@ -56,7 +56,7 @@ export default function SchedulesTab({ hospital, canWrite = true }) {
     const departments = hospital.departments || [];
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
+        <div className="mr-enter flex flex-col gap-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-extrabold tracking-tight">{schedules.length} {schedules.length === 1 ? 'Schedule' : 'Schedules'}</h2>
@@ -112,14 +112,14 @@ export default function SchedulesTab({ hospital, canWrite = true }) {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => router.push(`/hospital/${hospital._id}/schedule/${s._id}`)}
-                                    className="flex-1 h-10 rounded-xl bg-synclly-coral text-white text-xs font-bold hover:bg-synclly-coral-hover shadow-md shadow-synclly-coral/10"
+                                    className="flex-1 h-10 rounded-xl bg-synclly-coral text-white text-xs font-bold hover:bg-synclly-coral-hover shadow-md shadow-synclly-coral/10 cursor-pointer"
                                 >
                                     Open
                                 </button>
                                 {canWrite && (
                                 <button
                                     onClick={() => handleDelete(s)}
-                                    className="w-10 h-10 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center"
+                                    className="w-10 h-10 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center cursor-pointer"
                                     title="Delete"
                                 >
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

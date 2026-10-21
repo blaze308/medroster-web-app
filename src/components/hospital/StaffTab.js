@@ -80,7 +80,7 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
     }, [staff]);
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
+        <div className="mr-enter flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-extrabold tracking-tight">{staff.length} {staff.length === 1 ? 'Staff Member' : 'Staff Members'}</h2>
@@ -119,7 +119,7 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
             <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-2">
                 <button
                     onClick={() => onWardChange?.('all')}
-                    className={`shrink-0 h-9 px-4 rounded-xl text-[11px] font-bold transition-all ${
+                    className={`shrink-0 h-9 px-4 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                         activeWardId === 'all'
                             ? 'bg-synclly-coral text-white shadow-md shadow-synclly-coral/20'
                             : 'bg-white border border-slate-100 text-synclly-muted hover:text-synclly-deep'
@@ -133,7 +133,7 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
                     <button
                         key={w._id}
                         onClick={() => onWardChange?.(w._id)}
-                        className={`shrink-0 h-9 px-4 rounded-xl text-[11px] font-bold transition-all ${
+                        className={`shrink-0 h-9 px-4 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
                             activeWardId === w._id
                                 ? 'bg-synclly-coral text-white shadow-md shadow-synclly-coral/20'
                                 : 'bg-white border border-slate-100 text-synclly-muted hover:text-synclly-deep'
@@ -207,13 +207,13 @@ export default function StaffTab({ hospital, onChange, activeWardId = 'all', onW
                                 <div className="flex gap-2 mt-4 pt-4 border-t border-slate-50">
                                     <button
                                         onClick={() => setEditStaff(s)}
-                                        className="flex-1 h-9 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100"
+                                        className="flex-1 h-9 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
                                     >
                                         Edit
                                     </button>
                                     <button
                                         onClick={() => handleDelete(s)}
-                                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center"
+                                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center cursor-pointer"
                                         title="Remove"
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

@@ -58,7 +58,7 @@ export default function ConfirmModal({
 
     return (
         <div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
+            className="mr-fade fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
             role="dialog"
             aria-modal="true"
             aria-labelledby="confirm-modal-title"
@@ -66,7 +66,7 @@ export default function ConfirmModal({
                 if (e.target === e.currentTarget) onClose?.();
             }}
         >
-            <div className="w-full max-w-md rounded-3xl bg-white border border-slate-100 shadow-xl overflow-hidden">
+            <div className="mr-pop-in w-full max-w-md rounded-3xl bg-white border border-slate-100 shadow-xl overflow-hidden">
                 <div className="p-6 pb-4">
                     <h2 id="confirm-modal-title" className="text-lg font-extrabold text-ghs-deep">
                         {title}
@@ -126,7 +126,7 @@ export default function ConfirmModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="h-11 px-4 rounded-xl border border-slate-100 bg-white text-sm font-bold text-ghs-muted"
+                            className="h-11 px-4 rounded-xl border border-slate-100 bg-white text-sm font-bold text-ghs-muted cursor-pointer"
                         >
                             {cancelLabel}
                         </button>
@@ -135,7 +135,7 @@ export default function ConfirmModal({
                         type="button"
                         disabled={!anyChecked}
                         onClick={handleConfirm}
-                        className={`h-11 px-4 rounded-xl text-sm font-bold text-white disabled:opacity-40 ${
+                        className={`h-11 px-4 rounded-xl text-sm font-bold text-white cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                             danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-ghs-teal hover:opacity-90'
                         }`}
                     >

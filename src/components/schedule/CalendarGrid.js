@@ -177,14 +177,14 @@ export default function CalendarGrid({
                                 onClick={() => onCellClick(s, d)}
                                 className={`w-full h-10 md:h-12 rounded-lg md:rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${
                                     (isHoliday || a?.shiftType?.name === 'Holiday') && !onLeave && (!a || a.shiftType?.name === 'Holiday')
-                                        ? 'bg-ghs-gold-light border-[#E8C97A] hover:border-ghs-gold'
+                                        ? 'bg-ghs-gold-light border-[#E8C97A] hover:border-ghs-gold cursor-pointer active:scale-95'
                                         : onLeave
                                         ? 'bg-slate-50 border-slate-100 cursor-not-allowed'
                                         : a?.shiftType?.name === 'Off'
-                                        ? 'bg-rose-50/60 border-rose-100 hover:border-rose-200'
+                                        ? 'bg-rose-50/60 border-rose-100 hover:border-rose-200 cursor-pointer active:scale-95'
                                         : a
-                                        ? 'bg-white border-slate-100 hover:border-ghs-teal hover:shadow-sm'
-                                        : 'bg-ghs-surface border-transparent hover:border-ghs-teal/30 hover:bg-white'
+                                        ? 'bg-white border-slate-100 hover:border-ghs-teal hover:shadow-sm cursor-pointer active:scale-95'
+                                        : 'bg-ghs-surface border-transparent hover:border-ghs-teal/30 hover:bg-white cursor-pointer active:scale-95'
                                 }`}
                                 title={
                                     a?.shiftType?.name === 'Holiday' || isHoliday

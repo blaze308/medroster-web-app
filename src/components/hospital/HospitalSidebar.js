@@ -26,7 +26,7 @@ export default function HospitalSidebar({
                 />
             )}
 
-            <aside className={`fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-white border-r border-slate-100 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:relative md:max-w-none flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <aside className={`fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-white border-r border-slate-100 z-50 transform transition-transform duration-200 ease-out md:translate-x-0 md:relative md:max-w-none flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-4 md:p-6 mb-2 flex items-center gap-3">
                     <Link href="/" className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity">
                         <img src="/logo.svg" alt="MedRoster" className="w-10 h-10 rounded-xl shadow-lg shadow-ghs-teal/20 shrink-0" />
@@ -38,7 +38,7 @@ export default function HospitalSidebar({
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-ghs-surface flex items-center justify-center text-ghs-muted hover:text-ghs-deep"
+                        className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-ghs-surface flex items-center justify-center text-ghs-muted hover:text-ghs-deep cursor-pointer"
                         aria-label="Close menu"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -49,7 +49,7 @@ export default function HospitalSidebar({
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-4 space-y-8">
-                    <div className="space-y-1">
+                    <div className="space-y-1" data-tour="hospital-wards">
                         <h4 className="px-4 mb-3">Wards</h4>
                         {departments.length === 0 ? (
                             <p className="px-4 text-[11px] font-medium text-ghs-muted">Add a department group first.</p>
@@ -72,7 +72,7 @@ export default function HospitalSidebar({
                                                                 key={ward._id}
                                                                 type="button"
                                                                 onClick={() => onWardOpen?.(ward._id)}
-                                                                className={`block w-full text-left text-[11px] font-bold truncate rounded-lg px-2 py-1 ${
+                                                                className={`block w-full text-left text-[11px] font-bold truncate rounded-lg px-2 py-1 cursor-pointer ${
                                                                     active
                                                                         ? 'bg-ghs-teal-light text-ghs-teal'
                                                                         : 'text-ghs-muted hover:text-ghs-teal'

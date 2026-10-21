@@ -152,7 +152,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
     };
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-6">
+        <div className="mr-enter flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
                     <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest">
@@ -166,6 +166,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                 <div className="flex flex-wrap gap-2">
                     {latestSchedule ? (
                         <button
+                            data-tour="ward-roster-action"
                             onClick={() => openSchedule(latestSchedule._id)}
                             className="btn btn-primary text-xs py-2"
                         >
@@ -173,9 +174,10 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                         </button>
                     ) : canWrite ? (
                         <button
+                            data-tour="ward-roster-action"
                             onClick={makeThisMonth}
                             disabled={busyRoster}
-                            className="btn btn-primary text-xs py-2 disabled:opacity-50"
+                            className="btn btn-primary text-xs py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {busyRoster ? 'Creating…' : 'Make this month’s roster'}
                         </button>
@@ -183,6 +185,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                     {canWrite && (
                         <>
                             <button
+                                data-tour="ward-import-staff"
                                 onClick={() => setShowImport(true)}
                                 className="btn btn-secondary text-xs py-2 leading-tight text-left"
                             >
@@ -219,6 +222,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
 
             <div className="flex flex-wrap items-center gap-2">
                 <input
+                    data-tour="ward-staff-search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by name or rank..."
@@ -230,7 +234,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                             type="button"
                             onClick={() => setStaffView('list')}
                             aria-label="List view"
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${staffView === 'list' ? 'bg-[#006B3F] text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${staffView === 'list' ? 'bg-[#006B3F] text-white' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                                 <line x1="4" y1="7" x2="20" y2="7" />
@@ -242,7 +246,7 @@ export default function WardHome({ hospital, ward, department, onChange }) {
                             type="button"
                             onClick={() => setStaffView('grid')}
                             aria-label="Grid view"
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${staffView === 'grid' ? 'bg-[#006B3F] text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${staffView === 'grid' ? 'bg-[#006B3F] text-white' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                                 <rect x="3" y="3" width="8" height="8" rx="1.5" />
@@ -391,18 +395,18 @@ function StaffGridCard({ staff, canWrite, onEdit, onDelete }) {
                 <div className="flex gap-2 pt-4 border-t border-slate-50">
                     <button
                         onClick={onEdit}
-                        className="flex-1 h-9 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100"
+                        className="flex-1 h-9 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
                     >
                         Edit
                     </button>
                     <button
                         onClick={onDelete}
-                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center"
+                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center cursor-pointer"
                         title="Remove"
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+                            <path d="M19 6l-2 14a2 2 0 0 1-2-2L5 6" />
                         </svg>
                     </button>
                 </div>
@@ -421,13 +425,13 @@ function StaffListRow({ staff, canWrite, onEdit, onDelete }) {
                 <div className="flex gap-1 shrink-0">
                     <button
                         onClick={onEdit}
-                        className="h-9 px-3 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100"
+                        className="h-9 px-3 rounded-xl bg-synclly-surface text-synclly-deep text-[11px] font-bold hover:bg-slate-100 cursor-pointer"
                     >
                         Edit
                     </button>
                     <button
                         onClick={onDelete}
-                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center"
+                        className="w-9 h-9 rounded-xl text-rose-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center cursor-pointer"
                         title="Remove"
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

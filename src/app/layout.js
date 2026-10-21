@@ -1,5 +1,6 @@
 import "./globals.css";
 import { FirebaseAuthProvider } from '../components/FirebaseAuthProvider';
+import AppProviders from '../components/AppProviders';
 
 export const metadata = {
   title: "MedRoster — Ghana Hospital Staff Scheduling",
@@ -28,7 +29,9 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
       </head>
       <body suppressHydrationWarning>
-        <FirebaseAuthProvider>{children}</FirebaseAuthProvider>
+        <FirebaseAuthProvider>
+          <AppProviders>{children}</AppProviders>
+        </FirebaseAuthProvider>
       </body>
     </html>
   );

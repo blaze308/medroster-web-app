@@ -62,7 +62,7 @@ export default function DepartmentTemplatePicker({ onSave, onSkip, busy = false,
 
     return (
         <div className="w-full max-w-4xl mx-auto">
-            <div className="bg-white rounded-[40px] border border-slate-50 shadow-synclly-lg overflow-hidden">
+            <div className="bg-white rounded-[40px] border border-slate-50 shadow-synclly-lg overflow-hidden" data-tour="dept-templates">
                 {/* Header */}
                 <div className="px-4 sm:px-6 md:px-10 pt-6 sm:pt-8 md:pt-10 pb-4 md:pb-6 border-b border-slate-100">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-synclly-coral uppercase tracking-widest mb-3">
@@ -191,6 +191,7 @@ export default function DepartmentTemplatePicker({ onSave, onSkip, busy = false,
                                     )}
                                     <button
                                         type="button"
+                                        data-tour="dept-continue"
                                         disabled={selected.size === 0}
                                         onClick={goToReview}
                                         className="h-12 px-8 rounded-2xl bg-synclly-coral text-white font-bold text-sm hover:bg-synclly-coral-hover shadow-xl shadow-synclly-coral/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"

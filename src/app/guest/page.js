@@ -12,6 +12,7 @@ import {
 import SandboxScheduleShell from '../../components/schedule/SandboxScheduleShell';
 import ConfirmModal from '../../components/modals/ConfirmModal';
 import { exportRosterPdf } from '../../lib/pdf-export';
+import { isGuestOnlyTesting } from '../../lib/guest-only-testing';
 import { exportRosterCsv, exportRosterExcel } from '../../lib/spreadsheet-export';
 
 function defaultMonthRange() {
@@ -97,12 +98,16 @@ export default function GuestPage() {
                 banner={banner ? (
                     <div className="bg-amber-50 border-b border-amber-100 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium">
-                            Guest mode — everything works here, but data stays in this browser only. Register to save it to your account.
+                            {isGuestOnlyTesting()
+                                ? 'Guest mode — data stays in this browser only. Use this build to test import, edits, and export.'
+                                : 'Guest mode — everything works here, but data stays in this browser only. Register to save it to your account.'}
                         </span>
                         <div className="flex gap-2">
-                            <Link href="/auth/register" className="px-3 py-1.5 rounded-lg bg-ghs-teal text-white text-xs font-bold">
-                                Register to save
-                            </Link>
+                            {!isGuestOnlyTesting() && (
+                                <Link href="/auth/register" className="px-3 py-1.5 rounded-lg bg-ghs-teal text-white text-xs font-bold">
+                                    Register to save
+                                </Link>
+                            )}
                             <button type="button" onClick={() => setBanner(false)} className="text-xs font-bold text-amber-800">Dismiss</button>
                         </div>
                     </div>
@@ -111,7 +116,11 @@ export default function GuestPage() {
             {exportLimitModal && (
                 <ConfirmModal
                     title="Export limit reached"
-                    message={`Guest mode allows ${getGuestExportLimit()} PDF exports. Register for unlimited exports and cloud save.`}
+                    message={
+                        isGuestOnlyTesting()
+                            ? `Guest mode allows ${getGuestExportLimit()} exports in this tester build.`
+                            : `Guest mode allows ${getGuestExportLimit()} PDF exports. Register for unlimited exports and cloud save.`
+                    }
                     confirmLabel="Got it"
                     infoOnly
                     onClose={() => setExportLimitModal(false)}

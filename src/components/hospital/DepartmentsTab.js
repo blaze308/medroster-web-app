@@ -105,7 +105,7 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
 
     if (showAdd) {
         return (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mr-enter">
                 <DepartmentTemplatePicker
                     onSave={handleAddBulk}
                     onSkip={() => setShowAdd(false)}
@@ -118,7 +118,7 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
     }
 
     return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mr-enter">
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-2xl font-extrabold tracking-tight">{wards.length} {wards.length === 1 ? 'Ward / Unit' : 'Wards / Units'}</h2>
@@ -156,8 +156,8 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
                                         className="w-full h-11 bg-synclly-surface border border-slate-100 rounded-xl px-3 text-sm font-medium text-synclly-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-synclly-coral/5 focus:border-synclly-coral"
                                     />
                                     <div className="flex gap-2">
-                                        <button onClick={cancelEdit} className="flex-1 h-10 rounded-xl bg-white border border-slate-200 text-synclly-muted text-xs font-bold hover:bg-slate-50">Cancel</button>
-                                        <button onClick={() => saveEdit(d._id)} className="flex-1 h-10 rounded-xl bg-synclly-coral text-white text-xs font-bold hover:bg-synclly-coral-hover">Save</button>
+                                        <button onClick={cancelEdit} className="flex-1 h-10 rounded-xl bg-white border border-slate-200 text-synclly-muted text-xs font-bold hover:bg-slate-50 cursor-pointer">Cancel</button>
+                                        <button onClick={() => saveEdit(d._id)} className="flex-1 h-10 rounded-xl bg-synclly-coral text-white text-xs font-bold hover:bg-synclly-coral-hover cursor-pointer">Save</button>
                                     </div>
                                 </div>
                             ) : (
@@ -168,7 +168,7 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => startEdit(d)}
-                                                className="w-8 h-8 rounded-lg text-slate-400 hover:text-synclly-coral hover:bg-synclly-coral/5 flex items-center justify-center"
+                                                className="w-8 h-8 rounded-lg text-slate-400 hover:text-synclly-coral hover:bg-synclly-coral/5 flex items-center justify-center cursor-pointer"
                                                 title="Edit"
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -178,7 +178,7 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(d)}
-                                                className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center"
+                                                className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 flex items-center justify-center cursor-pointer"
                                                 title="Delete"
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -203,7 +203,7 @@ export default function DepartmentsTab({ hospital, onChange, onWardOpen, canWrit
                                                     key={ward._id}
                                                     type="button"
                                                     onClick={() => onWardOpen?.(ward._id)}
-                                                    className="px-2 py-1 rounded-lg bg-synclly-surface text-[10px] font-bold text-synclly-deep hover:bg-synclly-coral hover:text-white transition-colors"
+                                                    className="px-2 py-1 rounded-lg bg-synclly-surface text-[10px] font-bold text-synclly-deep hover:bg-synclly-coral hover:text-white transition-colors cursor-pointer"
                                                     title="Open ward"
                                                 >
                                                     {ward.name}
