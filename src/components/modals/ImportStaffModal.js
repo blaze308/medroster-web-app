@@ -111,7 +111,66 @@ function fileToBase64(file) {
 }
 
 const ROSTER_ACCEPT = '.docx,.xlsx,.pdf,.png,.jpg,.jpeg,.webp,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp';
+const CSV_ACCEPT = '.csv,text/csv';
 const MAX_ROSTER_BYTES = 10 * 1024 * 1024;
+
+function defaultImportPeriod(fallbackWard = 'My Ward') {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+        wardTitle: fallbackWard,
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        fromExtract: false,
+    };
+}
+
+/** Ward title + roster dates from extract preview, or sensible defaults for CSV / manual. */
+function inferImportPeriod(preview, fallbackWard = '') {
+    const days = preview?.days || [];
+    const dates = days
+        .map((d) => String(d?.date || '').slice(0, 10))
+        .filter(Boolean)
+        .sort();
+    const wardTitle = String(preview?.title || fallbackWard || '').trim();
+    if (dates.length) {
+        return {
+            wardTitle: wardTitle || fallbackWard || 'My Ward',
+            startDate: dates[0],
+            endDate: dates[dates.length - 1],
+            fromExtract: true,
+        };
+    }
+    const defaults = defaultImportPeriod(fallbackWard || 'My Ward');
+    return {
+        ...defaults,
+        wardTitle: wardTitle || defaults.wardTitle,
+        fromExtract: false,
+    };
+}
+
+function csvOnlySetupDraft(nextPreview, fallbackWard = '') {
+    const proposal = buildSetupProposal(nextPreview, null);
+    return {
+        legend: [],
+        inchargeStaffKey: '',
+        assistantStaffKey: '',
+        leaveByKey: {},
+        coverTargets: null,
+        roleGuesses: proposal.roleGuesses,
+        blanks: [],
+        needsFullSetup: false,
+        rolesEssential: false,
+        inchargeSkipped: true,
+        assistantSkipped: true,
+        inchargeChecked: true,
+        assistantChecked: true,
+        proposal,
+        periodOnly: true,
+        period: inferImportPeriod(nextPreview, fallbackWard),
+    };
+}
 
 function isCsvFile(file) {
     return /\.csv$/i.test(file?.name || '') || String(file?.type || '') === 'text/csv';
@@ -221,12 +280,13 @@ function UnifiedImportModal({
     const [defaultDepartmentId, setDefaultDepartmentId] = useState(defaultDepartmentIdProp || departments[0]?._id || '');
     const [defaultWardId, setDefaultWardId] = useState(defaultWardIdProp || wards[0]?._id || '');
     const [setupDraft, setSetupDraft] = useState(null);
-    /** 0 = Roles, 1 = Roster codes, 2 = Leave */
+    /** 0 = Roles, 1 = Roster codes, 2 = Leave, 3 = Period */
     const [setupSubStep, setSetupSubStep] = useState(0);
     const [confirmedSetup, setConfirmedSetup] = useState(null);
     const [toast, setToast] = useState(null); // { kind, message }
     const [showFreshClear, setShowFreshClear] = useState(false);
     const [importIntro, setImportIntro] = useState(false);
+    const [manualImportOpen, setManualImportOpen] = useState(false);
     const [rules, setRules] = useState({
         leaveStayOff: true,
         offAndHolidayStayOff: true,
@@ -249,6 +309,10 @@ function UnifiedImportModal({
     useEffect(() => {
         if (step === 'setup') setSetupSubStep(0);
     }, [step, setupDraft?.proposal]);
+
+    useEffect(() => {
+        if (step !== 'upload') setManualImportOpen(false);
+    }, [step]);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -329,14 +393,33 @@ function UnifiedImportModal({
         }
     };
 
-    const pickFile = (next) => {
+    const pickFile = (next, modeHint = 'roster') => {
         if (!next) return;
+        const csv = isCsvFile(next);
+        if (modeHint === 'roster' && csv) {
+            setToast({
+                kind: 'warning',
+                message: 'For a CSV staff list, use Spreadsheet import at the top.',
+            });
+            return;
+        }
+        if (modeHint === 'csv' && !csv) {
+            setError('Choose a .csv file from the template.');
+            return;
+        }
         setFile(next);
-        setPath(isCsvFile(next) ? 'csv' : 'roster');
+        setPath(csv ? 'csv' : 'roster');
         setError('');
     };
 
-    const draftFromProposal = (nextPreview, pack) => {
+    const closeManualImport = () => {
+        setManualImportOpen(false);
+        setFile(null);
+        setPath('roster');
+        setError('');
+    };
+
+    const draftFromProposal = (nextPreview, pack, fallbackWard = '') => {
         const proposal = buildSetupProposal(nextPreview, pack);
         return {
             legend: (proposal.legendDraft || []).map((e) => ({
@@ -380,6 +463,8 @@ function UnifiedImportModal({
             assistantChecked: Boolean(pack?.assistantStaffKey)
                 || Boolean(proposal.roleGuesses.find((r) => r.guessedRole === 'assistant')),
             proposal,
+            period: inferImportPeriod(nextPreview, fallbackWard),
+            periodOnly: false,
         };
     };
 
@@ -466,11 +551,14 @@ function UnifiedImportModal({
             });
             if (!staff.length) throw new Error('No staff rows found in that file');
             const nextPreview = { ...data, source: data.source || (useCsv ? 'csv' : 'roster'), staff };
+            const importWardFallback = mode === 'guest'
+                ? 'My Ward'
+                : (wards.find((w) => String(w._id) === String(defaultWardId))?.name || 'this ward');
             setRawPreview(nextPreview);
             setConfirmedSetup(null);
 
             if (!useCsv && nextPreview.source === 'roster') {
-                const { proposal, ...draft } = draftFromProposal(nextPreview, wardPack);
+                const { proposal, ...draft } = draftFromProposal(nextPreview, wardPack, importWardFallback);
                 setSetupDraft(draft);
                 if (wardPack?.confirmedAt && !proposal.needsFullSetup) {
                     const payload = buildRosterSetupPayload({
@@ -481,6 +569,7 @@ function UnifiedImportModal({
                         ...payload,
                         leaveByKey: draft.leaveByKey || {},
                     });
+                    const period = draft.period || inferImportPeriod(nextPreview, importWardFallback);
                     setConfirmedSetup(payload);
                     setPreview({
                         ...remapped,
@@ -490,16 +579,21 @@ function UnifiedImportModal({
                             selected: s.selected !== false,
                         })),
                         source: 'roster',
+                        title: String(period.wardTitle || remapped.title || '').trim(),
+                        startDate: period.startDate,
+                        endDate: period.endDate,
                     });
                     setStep('review');
                 } else {
                     setPreview(nextPreview);
+                    setSetupSubStep(0);
                     setStep('setup');
                 }
             } else {
-                setSetupDraft(null);
+                setSetupDraft(csvOnlySetupDraft(nextPreview, importWardFallback));
+                setSetupSubStep(3);
                 setPreview(nextPreview);
-                setStep('review');
+                setStep('setup');
             }
         } catch (err) {
             console.error('[MedRoster] extract failed', err);
@@ -551,6 +645,10 @@ function UnifiedImportModal({
             setSetupSubStep(2);
             return;
         }
+        if (setupSubStep === 2) {
+            setSetupSubStep(3);
+            return;
+        }
         applySetupAndReview();
     };
 
@@ -561,7 +659,10 @@ function UnifiedImportModal({
             shifts: Boolean(selected.shifts),
             staff: Boolean(selected.staff),
         });
-        const { proposal: _freshProposal, ...draft } = draftFromProposal(rawPreview, null);
+        const importWardFallback = mode === 'guest'
+            ? 'My Ward'
+            : (wards.find((w) => String(w._id) === String(defaultWardId))?.name || 'this ward');
+        const { proposal: _freshProposal, ...draft } = draftFromProposal(rawPreview, null, importWardFallback);
         // Force every code + role to be re-checked (true clean setup)
         draft.legend = (draft.legend || []).map((e) => ({
             ...e,
@@ -602,6 +703,38 @@ function UnifiedImportModal({
             setStep('review');
             return;
         }
+        const period = setupDraft.period || {};
+        if (!period.startDate || !period.endDate) {
+            setError('Choose start and end dates for this roster.');
+            return;
+        }
+        if (mode === 'guest') {
+            const days = Math.round(
+                (new Date(period.endDate) - new Date(period.startDate)) / 86400000
+            ) + 1;
+            if (days > 31) {
+                setError('Guest rosters are limited to 31 days.');
+                return;
+            }
+        }
+        if (setupDraft.periodOnly) {
+            const staff = (rawPreview.staff || []).map((s, i) => ({
+                ...s,
+                key: s.key || s.no || s._id || `row-${i}`,
+                selected: s.selected !== false,
+            }));
+            setPreview({
+                ...rawPreview,
+                staff,
+                source: 'csv',
+                title: String(period.wardTitle || '').trim(),
+                startDate: period.startDate,
+                endDate: period.endDate,
+            });
+            setToast(null);
+            setStep('review');
+            return;
+        }
         if (pendingRoles.length) {
             setToast({
                 kind: 'warning',
@@ -627,7 +760,14 @@ function UnifiedImportModal({
             selected: s.selected !== false,
         }));
         setConfirmedSetup(payload);
-        setPreview({ ...remapped, staff, source: 'roster' });
+        setPreview({
+            ...remapped,
+            staff,
+            source: 'roster',
+            title: String(period.wardTitle || remapped.title || '').trim(),
+            startDate: period.startDate,
+            endDate: period.endDate,
+        });
         setToast(null);
         setStep('review');
     };
@@ -660,8 +800,8 @@ function UnifiedImportModal({
                     assignments,
                     source: preview.source,
                     title: preview.title || '',
-                    startDate: sortedDates[0] || null,
-                    endDate: sortedDates[sortedDates.length - 1] || null,
+                    startDate: preview.startDate || sortedDates[0] || null,
+                    endDate: preview.endDate || sortedDates[sortedDates.length - 1] || null,
                     rosterSetup: confirmedSetup || null,
                     ruleModes: normalizeRuleModes(ruleModes),
                 };
@@ -724,7 +864,9 @@ function UnifiedImportModal({
         ? new Date(`${preview.days[0].date}T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
         : '';
     const stepHint = {
-        upload: 'Drop a duty roster photo, PDF, Word, or Excel. We’ll read names and shifts.',
+        upload: manualImportOpen
+            ? 'Fill in the template, then upload your CSV. Names only — no shift grid from spreadsheets.'
+            : 'Upload your ward duty roster — photo, PDF, Word, or Excel. We read names and shifts automatically.',
         setup: wardPack?.confirmedAt
             ? 'Only new or unclear codes are shown — the rest comes from this ward’s saved pack.'
             : 'One-time setup for this ward — we’ll remember it for next time.',
@@ -779,24 +921,52 @@ function UnifiedImportModal({
                     ? 'md:max-w-6xl'
                     : step === 'setup' || (step === 'review' && showGrid)
                         ? 'md:max-w-5xl'
-                        : 'max-w-lg'
+                        : step === 'upload'
+                            ? 'md:max-w-xl'
+                            : 'max-w-lg'
             }`}>
-                <div className="flex items-start justify-between mb-4">
-                    <div>
+                <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="min-w-0 flex-1">
                         <h3 className="text-lg font-extrabold text-ghs-deep leading-tight">
                             {step === 'done' ? 'Imported' : 'Import staff data'}
                         </h3>
-                        {step !== 'done' && step !== 'setup' && (
-                            <p className="text-[11px] font-medium text-ghs-muted mt-0.5">Photo, PDF, Word, or Excel</p>
+                        {step !== 'done' && step !== 'setup' && !manualImportOpen && (
+                            <p className="text-[11px] font-medium text-ghs-teal mt-0.5">Upload your duty roster</p>
                         )}
                         {step !== 'done' && (
                             <p className="text-xs text-ghs-muted font-medium mt-1">{stepHint}</p>
                         )}
                     </div>
-                    <button type="button" onClick={onClose} className="text-ghs-muted hover:text-ghs-deep text-xl leading-none">×</button>
+                    <div className="flex items-start gap-2 shrink-0">
+                        {step === 'upload' && !manualImportOpen && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setManualImportOpen(true);
+                                    setFile(null);
+                                    setPath('csv');
+                                    setError('');
+                                }}
+                                className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-[11px] font-bold text-ghs-muted hover:text-ghs-deep hover:border-slate-300 leading-tight text-left"
+                            >
+                                <span className="block">Spreadsheet import</span>
+                                <span className="block font-medium normal-case tracking-normal opacity-80">CSV template</span>
+                            </button>
+                        )}
+                        <button type="button" onClick={onClose} className="text-ghs-muted hover:text-ghs-deep text-xl leading-none p-1">×</button>
+                    </div>
                 </div>
 
-                {step === 'upload' && (
+                {step === 'upload' && manualImportOpen && (
+                    <ManualCsvImportPanel
+                        file={file}
+                        onFile={(f) => pickFile(f, 'csv')}
+                        onDownloadTemplate={downloadTemplate}
+                        onBack={closeManualImport}
+                    />
+                )}
+
+                {step === 'upload' && !manualImportOpen && (
                     <div className="space-y-4">
                         {importIntro && (
                             <div
@@ -804,11 +974,10 @@ function UnifiedImportModal({
                                 role="status"
                             >
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-extrabold text-ghs-deep">How import works</p>
+                                    <p className="text-sm font-extrabold text-ghs-deep">Start with your roster file</p>
                                     <p className="text-[11px] font-medium text-ghs-muted leading-snug mt-0.5">
-                                        Upload a duty roster photo, PDF, Word, or Excel — or a CSV staff list. We read
-                                        names and shifts, then you match roster letters and choose who to keep before
-                                        anything is saved.
+                                        Photo, PDF, Word, or Excel — we pull names and shifts, then you confirm codes
+                                        and who to keep. Need a plain staff list only? Use Spreadsheet import at the top.
                                     </p>
                                 </div>
                                 <button
@@ -836,21 +1005,31 @@ function UnifiedImportModal({
                         <FileDropZone
                             accept={ROSTER_ACCEPT}
                             file={file}
-                            onFile={pickFile}
-                            title="Drop your roster here, or click to browse"
+                            onFile={(f) => pickFile(f, 'roster')}
+                            prominent
+                            badge="Recommended"
+                            title="Drop your duty roster here"
                             hint="Photo, PDF, Word, or Excel · max 10 MB"
                         />
+                        <p className="text-[11px] font-medium text-ghs-muted text-center leading-snug px-2">
+                            Snap a photo of the paper roster, or upload the file from your ward — we handle the rest.
+                        </p>
                     </div>
                 )}
 
                 {step === 'setup' && setupDraft && (
                     <>
-                        <ImportSetupStepper currentIndex={setupSubStep} />
+                        {setupDraft.periodOnly ? (
+                            <p className="text-sm font-extrabold text-ghs-deep mb-3">Roster period</p>
+                        ) : (
+                            <ImportSetupStepper currentIndex={setupSubStep} />
+                        )}
                         <WardSetupStep
                             subStep={setupSubStep}
                             draft={setupDraft}
                             setDraft={setSetupDraft}
                             wardName={wardName}
+                            importMode={mode}
                             hasSavedPack={Boolean(wardPack?.confirmedAt) && !setupDraft.rolesEssential}
                             pendingLabels={pendingSetupLabels}
                             onStartFresh={
@@ -920,6 +1099,13 @@ function UnifiedImportModal({
                             type="button"
                             onClick={() => {
                                 setError('');
+                                if (setupDraft?.periodOnly) {
+                                    setStep('upload');
+                                    setSetupDraft(null);
+                                    setRawPreview(null);
+                                    setSetupSubStep(0);
+                                    return;
+                                }
                                 if (setupSubStep === 0) {
                                     setSetupDraft((d) => ({
                                         ...d,
@@ -935,7 +1121,7 @@ function UnifiedImportModal({
                             }}
                             className="h-12 px-2 rounded-2xl font-bold text-sm text-ghs-muted hover:text-ghs-deep"
                         >
-                            {setupSubStep === 0 ? 'Skip for now' : '‹ Back'}
+                            {setupSubStep === 0 && !setupDraft?.periodOnly ? 'Skip for now' : '‹ Back'}
                         </button>
                     ) : step === 'upload' || step === 'done' ? (
                         <button
@@ -958,7 +1144,7 @@ function UnifiedImportModal({
                                 if (step === 'rules') setStep('review');
                                 else if (step === 'review') {
                                     if (rawPreview && setupDraft) {
-                                        setSetupSubStep(setupHasLegendStep ? 1 : 2);
+                                        setSetupSubStep(3);
                                         setStep('setup');
                                     } else {
                                         setStep('upload');
@@ -994,7 +1180,7 @@ function UnifiedImportModal({
                             onClick={advanceSetupWizard}
                             className="h-12 min-w-[9rem] px-6 rounded-2xl bg-ghs-teal text-white font-bold text-sm shrink-0"
                         >
-                            {setupSubStep === 2 ? 'Finish import' : 'Continue ›'}
+                            {setupSubStep === 3 ? 'Finish import' : 'Continue ›'}
                         </button>
                     )}
                     {step === 'review' && (
@@ -1665,6 +1851,7 @@ const SETUP_WIZARD_STEPS = [
     { id: 'roles', label: 'Roles' },
     { id: 'codes', label: 'Roster codes' },
     { id: 'leave', label: 'Leave' },
+    { id: 'period', label: 'Period' },
 ];
 
 function ImportSetupStepper({ currentIndex }) {
@@ -1903,11 +2090,80 @@ function LegendCodeCard({ entry, setLegend }) {
     );
 }
 
+function SetupPeriodPanel({ period, setDraft, importMode = 'guest', periodOnly = false }) {
+    const fromExtract = Boolean(period?.fromExtract) && !periodOnly;
+
+    const patchPeriod = (patch) => {
+        setDraft((d) => ({
+            ...d,
+            period: { ...(d.period || {}), ...patch, fromExtract: false },
+        }));
+    };
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <h4 className="text-base font-extrabold text-ghs-deep">Roster period</h4>
+                <p className="text-sm font-medium text-ghs-muted mt-1">
+                    {fromExtract
+                        ? 'We read this from your file — change it if something looks wrong.'
+                        : 'Set the ward title and dates for this roster.'}
+                </p>
+            </div>
+            {fromExtract && (
+                <div className="rounded-xl border border-ghs-teal/20 bg-ghs-teal/5 px-3 py-2 text-[11px] font-medium text-ghs-deep">
+                    Filled from your uploaded roster
+                </div>
+            )}
+            <div className="grid sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-3">
+                    <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-0.5">
+                        Ward / title
+                    </label>
+                    <input
+                        className="w-full h-11 mt-1 rounded-xl border border-slate-200 px-3 text-sm"
+                        value={period?.wardTitle || ''}
+                        onChange={(e) => patchPeriod({ wardTitle: e.target.value })}
+                    />
+                </div>
+                <div>
+                    <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-0.5">Start</label>
+                    <input
+                        type="date"
+                        className="w-full h-11 mt-1 rounded-xl border border-slate-200 px-3 text-sm"
+                        value={period?.startDate || ''}
+                        onChange={(e) => patchPeriod({ startDate: e.target.value })}
+                    />
+                </div>
+                <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-0.5">End</label>
+                    <input
+                        type="date"
+                        className="w-full h-11 mt-1 rounded-xl border border-slate-200 px-3 text-sm"
+                        value={period?.endDate || ''}
+                        onChange={(e) => {
+                            const endDate = e.target.value;
+                            if (importMode === 'guest' && period?.startDate && endDate) {
+                                const days = Math.round(
+                                    (new Date(endDate) - new Date(period.startDate)) / 86400000
+                                ) + 1;
+                                if (days > 31) return;
+                            }
+                            patchPeriod({ endDate });
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function WardSetupStep({
     subStep = 0,
     draft,
     setDraft,
     wardName,
+    importMode = 'guest',
     hasSavedPack,
     pendingLabels = [],
     onStartFresh = null,
@@ -2076,6 +2332,17 @@ function WardSetupStep({
         );
     }
 
+    if (subStep === 3) {
+        return (
+            <SetupPeriodPanel
+                period={draft.period}
+                setDraft={setDraft}
+                importMode={importMode}
+                periodOnly={Boolean(draft.periodOnly)}
+            />
+        );
+    }
+
     return (
         <div className="space-y-4">
             <div>
@@ -2134,7 +2401,50 @@ function WardSetupStep({
     );
 }
 
-function FileDropZone({ accept, file, onFile, title, hint }) {
+function ManualCsvImportPanel({ file, onFile, onDownloadTemplate, onBack }) {
+    return (
+        <div className="space-y-4">
+            <button
+                type="button"
+                onClick={onBack}
+                className="text-sm font-bold text-ghs-teal hover:underline underline-offset-2"
+            >
+                ‹ Back to roster upload
+            </button>
+            <div className="rounded-2xl border border-slate-100 bg-ghs-surface px-4 py-3">
+                <p className="text-sm font-extrabold text-ghs-deep">Spreadsheet import</p>
+                <p className="text-[11px] font-medium text-ghs-muted mt-1 leading-snug">
+                    Download the template, add staff names and details, then upload the CSV. This path does not read
+                    shift grids from a duty roster — use roster upload for that.
+                </p>
+                <button
+                    type="button"
+                    onClick={onDownloadTemplate}
+                    className="mt-3 h-10 px-4 rounded-xl border border-ghs-teal/30 bg-white text-xs font-extrabold text-ghs-teal hover:bg-ghs-teal/5"
+                >
+                    Download CSV template
+                </button>
+            </div>
+            <FileDropZone
+                accept={CSV_ACCEPT}
+                file={file}
+                onFile={onFile}
+                title="Drop your filled CSV here"
+                hint=".csv only · from the MedRoster template"
+            />
+        </div>
+    );
+}
+
+function FileDropZone({
+    accept,
+    file,
+    onFile,
+    title,
+    hint,
+    prominent = false,
+    badge = '',
+}) {
     const inputRef = useRef(null);
     const [dragging, setDragging] = useState(false);
 
@@ -2145,9 +2455,20 @@ function FileDropZone({ accept, file, onFile, title, hint }) {
 
     return (
         <div>
-            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest ml-1 mb-2">
-                Upload file here
-            </p>
+            {(badge || !prominent) && (
+                <div className="flex items-center justify-between gap-2 ml-1 mb-2">
+                    {!prominent && (
+                        <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest">
+                            Upload file here
+                        </p>
+                    )}
+                    {badge ? (
+                        <span className={`text-[10px] font-extrabold uppercase tracking-widest text-ghs-teal ${prominent ? '' : 'ml-auto'}`}>
+                            {badge}
+                        </span>
+                    ) : null}
+                </div>
+            )}
             <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
@@ -2160,27 +2481,48 @@ function FileDropZone({ accept, file, onFile, title, hint }) {
                     setDragging(false);
                     pick(e.dataTransfer.files?.[0] || null);
                 }}
-                className={`w-full rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors cursor-pointer ${
+                className={`w-full rounded-2xl border-2 border-dashed text-center transition-colors cursor-pointer ${
+                    prominent ? 'px-4 py-12 sm:py-14 shadow-sm' : 'px-4 py-8'
+                } ${
                     dragging
                         ? 'border-ghs-teal bg-ghs-teal/10'
                         : file
-                            ? 'border-ghs-teal/40 bg-ghs-teal/5'
-                            : 'border-slate-200 bg-ghs-surface hover:border-ghs-teal hover:bg-ghs-teal/5'
+                            ? 'border-ghs-teal bg-ghs-teal/5'
+                            : prominent
+                                ? 'border-ghs-teal/50 bg-gradient-to-b from-ghs-teal/[0.07] to-white hover:border-ghs-teal hover:from-ghs-teal/10'
+                                : 'border-slate-200 bg-ghs-surface hover:border-ghs-teal hover:bg-ghs-teal/5'
                 }`}
             >
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-slate-100 text-ghs-teal">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
+                <div className={`mx-auto mb-3 flex items-center justify-center rounded-2xl bg-white border text-ghs-teal ${
+                    prominent
+                        ? 'h-16 w-16 border-ghs-teal/20 shadow-md'
+                        : 'h-12 w-12 border-slate-100'
+                }`}>
+                    {prominent ? (
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <rect x="3" y="4" width="18" height="16" rx="2" />
+                            <circle cx="8.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
+                            <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                    ) : (
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    )}
                 </div>
-                <p className="text-sm font-extrabold text-ghs-deep">
+                <p className={`font-extrabold text-ghs-deep ${prominent ? 'text-base sm:text-lg' : 'text-sm'}`}>
                     {file ? file.name : title}
                 </p>
-                <p className="text-[11px] font-medium text-ghs-muted mt-1.5 leading-snug">
+                <p className={`font-medium text-ghs-muted mt-1.5 leading-snug ${prominent ? 'text-xs sm:text-sm' : 'text-[11px]'}`}>
                     {file ? 'Click to choose a different file' : hint}
                 </p>
+                {prominent && !file && (
+                    <span className="inline-block mt-4 h-10 px-5 rounded-xl bg-ghs-teal text-white text-sm font-bold leading-10">
+                        Choose file
+                    </span>
+                )}
             </button>
             <input
                 ref={inputRef}

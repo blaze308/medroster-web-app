@@ -339,6 +339,41 @@ export default function SandboxScheduleShell({
         return Math.round((new Date(schedule.endDate) - new Date(schedule.startDate)) / 86400000) + 1;
     }, [schedule?.startDate, schedule?.endDate]);
 
+    const guestEmptyOnboarding = mode === 'guest' && staff.length === 0;
+
+    const staffAddForm = (
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+            <input
+                className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border border-slate-200 px-3 text-sm"
+                placeholder="First name"
+                value={newFirst}
+                onChange={(e) => setNewFirst(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addStaff()}
+            />
+            <input
+                className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border border-slate-200 px-3 text-sm"
+                placeholder="Last name"
+                value={newLast}
+                onChange={(e) => setNewLast(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addStaff()}
+            />
+            <input
+                className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border border-slate-200 px-3 text-sm"
+                placeholder="Rank"
+                value={newRank}
+                onChange={(e) => setNewRank(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addStaff()}
+            />
+            <button
+                type="button"
+                onClick={addStaff}
+                className="h-11 px-5 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold shrink-0 bg-white hover:bg-ghs-teal/5"
+            >
+                Add
+            </button>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-ghs-surface">
             {banner}
@@ -361,15 +396,17 @@ export default function SandboxScheduleShell({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            data-tour="import-staff"
-                            onClick={() => setShowImport(true)}
-                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left bg-white cursor-pointer"
-                        >
-                            <span className="block">Import staff data</span>
-                            <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
-                        </button>
+                        {!guestEmptyOnboarding && (
+                            <button
+                                type="button"
+                                data-tour="import-staff"
+                                onClick={() => setShowImport(true)}
+                                className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left bg-white cursor-pointer"
+                            >
+                                <span className="block">Import staff data</span>
+                                <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
+                            </button>
+                        )}
                         <button
                             type="button"
                             data-tour="auto-generate"
@@ -463,46 +500,85 @@ export default function SandboxScheduleShell({
                     </div>
                 )}
 
-                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6 space-y-4" data-tour="roster-period">
-                    <div className="grid sm:grid-cols-3 gap-3">
-                        <div>
-                            <label className="text-[10px] font-bold text-ghs-muted uppercase">Ward / title</label>
-                            <input
-                                className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
-                                value={schedule?.wardName || schedule?.name || ''}
-                                onChange={(e) => patch({ wardName: e.target.value, name: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-ghs-muted uppercase">Start</label>
-                            <input
-                                type="date"
-                                className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
-                                value={schedule?.startDate || ''}
-                                onChange={(e) => patch({ startDate: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-ghs-muted uppercase">End</label>
-                            <input
-                                type="date"
-                                className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
-                                value={schedule?.endDate || ''}
-                                onChange={(e) => {
-                                    const next = e.target.value;
-                                    const days = Math.round((new Date(next) - new Date(schedule.startDate)) / 86400000) + 1;
-                                    if (mode === 'guest' && days > 31) {
-                                        setToast('Guest schedules are limited to 31 days. Register to keep longer cycles in the cloud.');
-                                        return;
-                                    }
-                                    patch({ endDate: next });
-                                }}
-                            />
+                {mode !== 'guest' && (
+                    <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6 space-y-4" data-tour="roster-period">
+                        <div className="grid sm:grid-cols-3 gap-3">
+                            <div>
+                                <label className="text-[10px] font-bold text-ghs-muted uppercase">Ward / title</label>
+                                <input
+                                    className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
+                                    value={schedule?.wardName || schedule?.name || ''}
+                                    onChange={(e) => patch({ wardName: e.target.value, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-ghs-muted uppercase">Start</label>
+                                <input
+                                    type="date"
+                                    className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
+                                    value={schedule?.startDate || ''}
+                                    onChange={(e) => patch({ startDate: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-ghs-muted uppercase">End</label>
+                                <input
+                                    type="date"
+                                    className="w-full h-11 mt-1 rounded-xl border px-3 text-sm"
+                                    value={schedule?.endDate || ''}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        const days = Math.round((new Date(next) - new Date(schedule.startDate)) / 86400000) + 1;
+                                        if (mode === 'guest' && days > 31) {
+                                            setToast('Guest schedules are limited to 31 days. Register to keep longer cycles in the cloud.');
+                                            return;
+                                        }
+                                        patch({ endDate: next });
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {schedule?.startDate && schedule?.endDate && (
+                {guestEmptyOnboarding && (
+                    <div className="mb-6 space-y-3 max-w-lg mx-auto">
+                        <button
+                            type="button"
+                            data-tour="import-staff"
+                            onClick={() => setShowImport(true)}
+                            className="w-full rounded-2xl border-2 border-dashed border-ghs-teal/45 bg-gradient-to-b from-ghs-teal/[0.07] to-white px-4 py-7 text-center hover:border-ghs-teal hover:from-ghs-teal/10 transition-colors cursor-pointer"
+                        >
+                            <div className="mx-auto mb-2.5 flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-ghs-teal/20 text-ghs-teal shadow-sm">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                                    <circle cx="8.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
+                                    <path d="M21 15l-5-5L5 21" />
+                                </svg>
+                            </div>
+                            <p className="text-base font-extrabold text-ghs-deep">Upload staff data</p>
+                            <p className="text-xs font-medium text-ghs-muted mt-1 max-w-sm mx-auto leading-snug">
+                                Photo, PDF, Word, or Excel — we read names and shifts.
+                            </p>
+                            <span className="inline-block mt-3 h-9 px-5 rounded-lg bg-ghs-teal text-white text-xs font-bold leading-9">
+                                Choose roster file
+                            </span>
+                            <p className="text-[10px] font-medium text-ghs-muted mt-2">
+                                Recommended · max 10 MB
+                            </p>
+                        </button>
+
+                        <div className="bg-white rounded-2xl border border-slate-100 p-4" data-tour="roster-staff">
+                            <p className="text-sm font-extrabold text-ghs-deep">Add manually</p>
+                            <p className="text-[11px] font-medium text-ghs-muted mt-0.5 mb-3">
+                                One person at a time if you don&apos;t have a roster file yet.
+                            </p>
+                            {staffAddForm}
+                        </div>
+                    </div>
+                )}
+
+                {!guestEmptyOnboarding && schedule?.startDate && schedule?.endDate && (
                     <div className="mb-6" data-tour="roster-calendar">
                         <CalendarGrid
                             startDate={schedule.startDate}
@@ -516,34 +592,31 @@ export default function SandboxScheduleShell({
                     </div>
                 )}
 
-                <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6" data-tour="roster-staff">
-                    <h2 className="font-extrabold text-ghs-deep mb-3">Staff</h2>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-4">
-                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="First name" value={newFirst} onChange={(e) => setNewFirst(e.target.value)} />
-                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="Last name" value={newLast} onChange={(e) => setNewLast(e.target.value)} />
-                        <input className="h-11 w-full sm:w-auto flex-1 min-w-0 rounded-xl border px-3 text-sm" placeholder="Rank" value={newRank} onChange={(e) => setNewRank(e.target.value)} />
-                        <button type="button" onClick={addStaff} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold shrink-0">Add</button>
+                {!guestEmptyOnboarding && (
+                    <div className="bg-white rounded-3xl border border-slate-100 p-5 mb-6" data-tour="roster-staff">
+                        <h2 className="font-extrabold text-ghs-deep mb-3">Staff</h2>
+                        <div className="mb-4">{staffAddForm}</div>
+                        <ul className="divide-y max-h-48 overflow-y-auto">
+                            {staff.map((s) => (
+                                <li key={s._id} className="py-2.5 flex items-center justify-between gap-3 text-sm">
+                                    <span className="font-semibold text-ghs-deep min-w-0 truncate">
+                                        {s.firstName} {s.lastName}{' '}
+                                        <span className="text-ghs-muted font-medium">· {s.rank}</span>
+                                        {s.wardRole && s.wardRole !== 'regular' ? (
+                                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-ghs-teal">{s.wardRole}</span>
+                                        ) : null}
+                                    </span>
+                                    <button type="button" onClick={() => removeStaff(s._id)} className="text-xs font-bold text-rose-500 shrink-0">Remove</button>
+                                </li>
+                            ))}
+                            {staff.length === 0 && (
+                                <li className="py-8 text-center text-sm text-ghs-muted">
+                                    No staff yet — add manually or import a duty roster photo or document.
+                                </li>
+                            )}
+                        </ul>
                     </div>
-                    <ul className="divide-y max-h-48 overflow-y-auto">
-                        {staff.map((s) => (
-                            <li key={s._id} className="py-2.5 flex items-center justify-between gap-3 text-sm">
-                                <span className="font-semibold text-ghs-deep min-w-0 truncate">
-                                    {s.firstName} {s.lastName}{' '}
-                                    <span className="text-ghs-muted font-medium">· {s.rank}</span>
-                                    {s.wardRole && s.wardRole !== 'regular' ? (
-                                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-ghs-teal">{s.wardRole}</span>
-                                    ) : null}
-                                </span>
-                                <button type="button" onClick={() => removeStaff(s._id)} className="text-xs font-bold text-rose-500 shrink-0">Remove</button>
-                            </li>
-                        ))}
-                        {staff.length === 0 && (
-                            <li className="py-8 text-center text-sm text-ghs-muted">
-                                No staff yet — add manually or import a duty roster photo or document.
-                            </li>
-                        )}
-                    </ul>
-                </div>
+                )}
             </div>
 
             {picker && (
