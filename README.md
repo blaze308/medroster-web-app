@@ -119,7 +119,7 @@ src/
 | Repo | Role |
 |------|------|
 | [medroster-backend](https://github.com/blaze308/medroster-backend) | Express + Firestore API |
-| [medroster-app](https://github.com/blaze308/medroster-app) | Flutter mobile client |
+| [medroster-mobile-app](https://github.com/blaze308/medroster-mobile-app) | Flutter mobile client |
 
 ---
 
