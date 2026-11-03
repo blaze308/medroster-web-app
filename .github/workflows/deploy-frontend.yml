@@ -1,8 +1,10 @@
 name: Deploy Frontend to Vercel
 
 # Production deploys on push to main via Vercel Git (dashboard).
-# This workflow is a manual backup; it needs repository secrets:
-#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# This workflow is a manual backup; set repository secrets:
+#   VERCEL_TOKEN (create at vercel.com/account/tokens)
+#   VERCEL_ORG_ID=team_gdUTLxCXISAkzmENz9X817A9
+#   VERCEL_PROJECT_ID=prj_0EyVByiCw1RKJJqiQAIk0FkEpIZK
 on:
   workflow_dispatch:
 
