@@ -34,7 +34,7 @@ You may request account deletion or data export by contacting us at the email be
 
 ## Contact
 
-For privacy questions: **dev.studio.jay@gmail.com** (Blaze Studios)
+For privacy questions: **jaimepinkrah@gmail.com** (Blaze Studios)
 
 ## Changes
 
