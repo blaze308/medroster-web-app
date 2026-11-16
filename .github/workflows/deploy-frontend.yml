@@ -2,9 +2,10 @@ name: Deploy Frontend to Vercel
 
 # Production deploys on push to main via Vercel Git (dashboard).
 # This workflow is a manual backup; set repository secrets:
-#   VERCEL_TOKEN (create at vercel.com/account/tokens)
-#   VERCEL_ORG_ID=team_gdUTLxCXISAkzmENz9X817A9
-#   VERCEL_PROJECT_ID=prj_0EyVByiCw1RKJJqiQAIk0FkEpIZK
+#   VERCEL_TOKEN — paste token value; secret name on GitHub must be VERCEL_TOKEN
+#     (create while logged into the correct Vercel account: vercel.com/account/tokens)
+#   VERCEL_ORG_ID / VERCEL_PROJECT_ID — from `vercel link` then `.vercel/project.json`
+#   blaze308 team (current linked project): team_gdUTLxCXISAkzmENz9X817A9, prj_0EyVByiCw1RKJJqiQAIk0FkEpIZK
 on:
   workflow_dispatch:
 
@@ -44,10 +45,8 @@ jobs:
         run: npm ci
 
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel@latest deploy --prod --yes --token="$VERCEL_TOKEN"
