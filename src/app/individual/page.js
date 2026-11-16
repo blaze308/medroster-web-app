@@ -23,6 +23,7 @@ export default function IndividualDashboard() {
     const [hospitalRegion, setHospitalRegion] = useState('Greater Accra');
     const [error, setError] = useState('');
     const [creating, setCreating] = useState(false);
+    const [note, setNote] = useState('');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -113,57 +114,56 @@ export default function IndividualDashboard() {
         return <div className="min-h-screen flex items-center justify-center text-ghs-muted">Loading…</div>;
     }
 
-    return (
-        <div className="min-h-screen bg-ghs-surface">
-            <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 max-w-5xl mx-auto">
-                <Link href="/" className="font-extrabold text-ghs-deep shrink-0">MedRoster</Link>
-                <div className="flex items-center gap-2 sm:gap-3 text-sm min-w-0">
-                    <span className="text-ghs-muted truncate max-w-[28vw] sm:max-w-xs md:max-w-none">{user?.email || user?.phoneNumber}</span>
-                    <button type="button" onClick={() => signOut(auth)} className="font-bold text-ghs-teal shrink-0">Sign out</button>
-                </div>
-            </nav>
+    const label = user?.displayName || user?.email || user?.phoneNumber || 'Clinician';
+    const initials = label.slice(0, 2).toUpperCase();
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 md:py-8">
-                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-start justify-between gap-4 mb-8">
-                    <div className="min-w-0">
-                        <h1 className="text-xl md:text-2xl font-extrabold text-ghs-deep">Individual workspace</h1>
-                        <p className="text-sm text-ghs-muted mt-1">Monthly schedules · calendar &amp; auto-generate · up to 50 staff · unlimited PDF · saved to your account</p>
+    return (
+        <div className="min-h-screen bg-surface">
+            <header className="h-16 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] flex items-center justify-between px-4 lg:px-8">
+                <Link href="/" className="flex items-center gap-2 font-bold text-stitch-primary">
+                    <img src="/logo.svg" alt="" className="w-8 h-8" /> MedRoster
+                </Link>
+                <button type="button" onClick={() => signOut(auth)} className="text-[13px] font-semibold text-emerald-deep cursor-pointer">Sign out</button>
+            </header>
+            <main className="max-w-6xl mx-auto px-4 lg:px-8 py-8 flex flex-col gap-6">
+                <section className="bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 h-14 rounded-xl bg-emerald-deep text-on-primary font-bold flex items-center justify-center shrink-0">{initials}</div>
+                        <div className="min-w-0">
+                            <h1 className="landing-title truncate">{label}</h1>
+                            <p className="text-sm text-slate-muted">Individual workspace · {schedules.length} schedule{schedules.length === 1 ? '' : 's'}</p>
+                        </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setShowImport(true)}
-                            className="min-h-11 px-4 py-1.5 rounded-xl border text-sm font-bold leading-tight text-left flex-1 sm:flex-none"
-                        >
-                            <span className="block">Import staff data</span>
-                            <span className="block text-[10px] font-medium text-ghs-muted normal-case tracking-normal">Photo, PDF, Word, or Excel</span>
-                        </button>
-                        <button type="button" onClick={createSchedule} disabled={creating} className="h-11 px-4 rounded-xl bg-ghs-teal text-white text-sm font-bold disabled:opacity-50 flex-1 sm:flex-none">
-                            New month schedule
-                        </button>
-                        <button type="button" onClick={() => setShowUpgrade(true)} className="h-11 px-4 rounded-xl border border-ghs-teal text-ghs-teal text-sm font-bold w-full sm:w-auto">
-                            Upgrade to hospital
-                        </button>
+                        <button type="button" onClick={() => setShowImport(true)} className="px-4 py-2 rounded-lg bg-surface-container text-[13px] font-semibold cursor-pointer">Import staff</button>
+                        <button type="button" onClick={createSchedule} disabled={creating} className="px-4 py-2 rounded-lg bg-emerald-deep text-on-primary text-[13px] font-semibold disabled:opacity-50 cursor-pointer">New month</button>
+                        <button type="button" onClick={() => setShowUpgrade(true)} className="px-4 py-2 rounded-lg bg-mint-surface text-emerald-deep text-[13px] font-semibold cursor-pointer">Upgrade to hospital</button>
                     </div>
-                </div>
-
-                {error && <div className="mb-4 bg-rose-50 text-rose-600 text-sm font-bold p-3 rounded-xl">{error}</div>}
-
-                <div className="grid gap-4">
-                    {schedules.map((s) => (
-                        <div key={s._id} className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="font-extrabold text-ghs-deep truncate">{s.name}</div>
-                                <div className="text-xs text-ghs-muted mt-1">{s.startDate} → {s.endDate} · {(s.staff || []).length} staff</div>
+                </section>
+                {note && <p className="text-sm text-forest-mid bg-mint-surface rounded-lg px-3 py-2">{note}</p>}
+                {error && <div className="bg-rose-50 text-rose-600 text-sm font-bold p-3 rounded-xl">{error}</div>}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <div className="lg:col-span-7 flex flex-col gap-3">
+                        <h2 className="text-base font-bold text-slate-black">Duty schedules</h2>
+                        {schedules.map((item) => (
+                            <div key={item._id} className="bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <div className="font-semibold text-slate-black">{item.name}</div>
+                                    <div className="text-xs text-slate-muted">{item.startDate} → {item.endDate} · {(item.staff || []).length} staff</div>
+                                </div>
+                                <Link href={`/individual/${item._id}`} className="text-[13px] font-semibold text-emerald-deep">Open</Link>
                             </div>
-                            <Link href={`/individual/${s._id}`} className="text-sm font-bold text-ghs-teal shrink-0">Open →</Link>
-                        </div>
-                    ))}
-                    {schedules.length === 0 && (
-                        <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-8 sm:p-10 text-center text-ghs-muted text-sm">
-                            No schedules yet. Create a month or import staff first.
-                        </div>
-                    )}
+                        ))}
+                        {schedules.length === 0 && (
+                            <div className="bg-surface-container-lowest rounded-xl p-8 text-center text-sm text-slate-muted">No schedules yet. Create a month or import staff first.</div>
+                        )}
+                    </div>
+                    <aside className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-5 shadow-sm flex flex-col gap-3">
+                        <h2 className="text-base font-bold text-slate-black">Swap and dispatch</h2>
+                        <p className="text-sm text-slate-body">Shift swaps and WhatsApp dispatch are not sent from this workspace.</p>
+                        <button type="button" onClick={() => setNote('Swap request noted on this page. No colleague was contacted.')} className="px-4 py-2 rounded-lg bg-surface-container text-left text-[13px] font-semibold cursor-pointer">Request a swap</button>
+                        <button type="button" onClick={() => setNote('WhatsApp dispatch was not sent. Use the schedule export when you need a copy.')} className="px-4 py-2 rounded-lg bg-surface-container text-left text-[13px] font-semibold cursor-pointer">WhatsApp duty card</button>
+                    </aside>
                 </div>
             </main>
 

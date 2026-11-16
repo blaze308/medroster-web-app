@@ -10,6 +10,7 @@ import JoinCodeInput from '../../../components/auth/JoinCodeInput';
 import GoogleSignInButton from '../../../components/auth/GoogleSignInButton';
 import PhoneAuthPanel from '../../../components/auth/PhoneAuthPanel';
 import { useFirebaseAuth } from '../../../components/FirebaseAuthProvider';
+import AuthGateway from '../../../components/auth/AuthGateway';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -84,12 +85,10 @@ export default function JoinHospitalPage() {
     };
 
     return (
-        <div className="min-h-screen bg-ghs-surface flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-white rounded-[32px] border border-slate-100 shadow-synclly p-8">
-                <h1 className="text-xl font-extrabold text-ghs-deep mb-1">Join a hospital</h1>
-                <p className="text-sm text-ghs-muted font-medium mb-6">
-                    Ask your admin for the hospital join code.
-                </p>
+        <AuthGateway tab="join">
+            <div>
+                <h2 className="text-xl font-extrabold text-ghs-deep mb-1">Join a hospital</h2>
+                <p className="text-sm text-ghs-muted font-medium mb-6">Ask your admin for the hospital join code.</p>
 
                 <div className="space-y-4">
                     <div>
@@ -141,12 +140,7 @@ export default function JoinHospitalPage() {
                     )}
                 </div>
 
-                <p className="text-center text-xs text-ghs-muted mt-6">
-                    <Link href="/auth/register">Register a new hospital</Link>
-                    {' · '}
-                    <Link href="/">Home</Link>
-                </p>
             </div>
-        </div>
+        </AuthGateway>
     );
 }

@@ -229,6 +229,50 @@ export function displayMeaningLabel(meaning) {
     return LEGEND_MEANING_OPTIONS.find((o) => o.value === meaning)?.label || meaning;
 }
 
+/** Legend / footer lines that must not appear in ward in-charge pickers. */
+const ROLE_PICKER_BLOCKED_NAMES = new Set([
+    'meaning',
+    'meaning meaning',
+    'morning cover shift',
+    'afternoon cover shift',
+    'night cover shift',
+    'special / sod duty',
+    'clinic / opd (weekday clinic or outpatient post)',
+    'off / rest day',
+    'public holiday',
+    'approved leave',
+    'guest roster (not saved to cloud)',
+]);
+
+function normalizePickerName(raw) {
+    return String(raw || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** True when a parsed roster row is a real staff member (not legend/export/footer). */
+export function isRolePickerStaffRow(s = {}) {
+    const name = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.fullName || s.name || '';
+    const norm = normalizePickerName(name);
+    if (!norm || norm.length < 2) return false;
+    if (ROLE_PICKER_BLOCKED_NAMES.has(norm)) return false;
+    if (/^guest roster\b/.test(norm)) return false;
+    if (/^medroster\s*[·•]/.test(norm)) return false;
+    if (LEGEND_MEANINGS.map((m) => m.toLowerCase()).includes(norm) && !s.rankFull && !s.rank && !s.rankAbbr) {
+        return false;
+    }
+    return true;
+}
+
+export function isRolePickerStaffGuess(guess = {}) {
+    const name = guess.name || '';
+    const norm = normalizePickerName(name);
+    if (!norm || ROLE_PICKER_BLOCKED_NAMES.has(norm)) return false;
+    if (/^guest roster\b/.test(norm)) return false;
+    if (/^medroster\s*[·•]/.test(norm)) return false;
+    if (guess.rank) return true;
+    if (LEGEND_MEANINGS.map((m) => m.toLowerCase()).includes(norm)) return false;
+    return norm.length >= 2;
+}
+
 const KNOWN_LABEL_MEANING = {
     M: 'Morning',
     A: 'Afternoon',
@@ -432,7 +476,9 @@ export function buildSetupProposal(preview, savedSetup = null) {
         needsConfirm: c.needsConfirm,
     }));
 
-    const roleGuesses = (preview?.staff || []).map((s, i) => {
+    const roleGuesses = (preview?.staff || [])
+        .filter(isRolePickerStaffRow)
+        .map((s, i) => {
         const key = s.key || s.no || s._id || `row-${i}`;
         const name = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.fullName || key;
         return {

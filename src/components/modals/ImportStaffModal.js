@@ -31,6 +31,7 @@ import {
     defaultOfficeDays,
     displayMeaningLabel,
     isRegularDutyOverlaps,
+    isRolePickerStaffGuess,
     kindFromMeaning,
     LEGEND_KIND_OPTIONS,
     OFFICE_DAY_OPTIONS,
@@ -1940,10 +1941,10 @@ function SetupRoleCard({
     title,
     staffKey,
     skipped,
-    roleGuesses,
+    staffOptions,
     onChange,
 }) {
-    const selected = roleGuesses.find((r) => r.key === staffKey);
+    const selected = staffOptions.find((r) => r.key === staffKey);
     const status = selected ? selected.name : skipped ? 'Skipped' : 'Not set';
     const statusTone = selected
         ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
@@ -1970,7 +1971,7 @@ function SetupRoleCard({
                         onChange={(e) => onChange(e.target.value)}
                     >
                         <option value="">Choose a staff member…</option>
-                        {roleGuesses.map((r) => (
+                        {staffOptions.map((r) => (
                             <option key={r.key} value={r.key}>
                                 {r.name}{r.rank ? ` · ${r.rank}` : ''}
                             </option>
@@ -1982,7 +1983,7 @@ function SetupRoleCard({
     );
 }
 
-function LegendCodeCard({ entry, setLegend }) {
+function LegendCodeCard({ entry, setLegend, onRemove }) {
     const pending = entry.needsConfirm && !entry.userChecked;
     const ok = entry.userChecked || (!entry.needsConfirm && (entry.meaning || entry.dutyKind === 'skip'));
     const dutyKind = entry.dutyKind || kindFromMeaning(entry.meaning || '');
@@ -2019,18 +2020,29 @@ function LegendCodeCard({ entry, setLegend }) {
                                 <p className="text-[11px] font-bold text-amber-800 mt-0.5">Needs a unit name</p>
                             ) : null}
                         </div>
-                        <button
-                            type="button"
-                            disabled={!canConfirm}
-                            onClick={() => toggleLegendConfirmed(setLegend, entry)}
-                            className={`shrink-0 h-9 px-3 rounded-xl text-xs font-extrabold border transition-colors disabled:opacity-40 ${
-                                ok
-                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                    : 'bg-white border-slate-200 text-ghs-deep hover:border-ghs-teal'
-                            }`}
-                        >
-                            {ok ? '✓ Confirmed' : '✓ Confirm'}
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                                type="button"
+                                disabled={!canConfirm}
+                                onClick={() => toggleLegendConfirmed(setLegend, entry)}
+                                className={`h-9 px-3 rounded-xl text-xs font-extrabold border transition-colors disabled:opacity-40 ${
+                                    ok
+                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                                        : 'bg-white border-slate-200 text-ghs-deep hover:border-ghs-teal'
+                                }`}
+                            >
+                                {ok ? '✓ Confirmed' : '✓ Confirm'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onRemove?.(entry.label)}
+                                aria-label={`Remove code ${entry.label}`}
+                                title="Remove this code"
+                                className="h-9 px-3 rounded-xl text-xs font-extrabold border border-slate-200 bg-white text-rose-700 hover:border-rose-300 hover:bg-rose-50"
+                            >
+                                Delete
+                            </button>
+                        </div>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-2 mt-3">
                         <select
@@ -2169,6 +2181,10 @@ function WardSetupStep({
     onStartFresh = null,
 }) {
     const allStaff = draft.roleGuesses || [];
+    const staffForRoles = useMemo(
+        () => allStaff.filter(isRolePickerStaffGuess),
+        [allStaff]
+    );
     const leaveFromUpload = useMemo(
         () => allStaff.filter((r) => r.leaveLikely || r.leaveType),
         [allStaff]
@@ -2225,6 +2241,13 @@ function WardSetupStep({
         }));
     };
 
+    const removeLegend = (label) => {
+        setDraft((d) => ({
+            ...d,
+            legend: (d.legend || []).filter((e) => e.label !== label),
+        }));
+    };
+
     if (subStep === 0) {
         return (
             <div className="space-y-4">
@@ -2247,8 +2270,8 @@ function WardSetupStep({
                     <SetupRoleCard
                         title="Ward in-charge"
                         staffKey={draft.inchargeStaffKey}
+                        staffOptions={staffForRoles}
                         skipped={draft.inchargeSkipped}
-                        roleGuesses={draft.roleGuesses || []}
                         icon={(
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -2265,8 +2288,8 @@ function WardSetupStep({
                     <SetupRoleCard
                         title="Assistant in-charge"
                         staffKey={draft.assistantStaffKey}
+                        staffOptions={staffForRoles}
                         skipped={draft.assistantSkipped}
-                        roleGuesses={draft.roleGuesses || []}
                         icon={(
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -2294,7 +2317,7 @@ function WardSetupStep({
                     <div>
                         <h4 className="text-base font-extrabold text-ghs-deep">What do the roster letters mean?</h4>
                         <p className="text-sm font-medium text-ghs-muted mt-1">
-                            Confirm each code. Add a unit name where it applies.
+                            Confirm each code, or delete one that isn’t a real roster letter. Add a unit name where it applies.
                         </p>
                     </div>
                     {legendRows.length > 0 && (
@@ -2314,7 +2337,7 @@ function WardSetupStep({
                 {legendRows.length > 0 ? (
                     <div className="space-y-3 max-h-[min(52vh,28rem)] overflow-y-auto pr-1">
                         {legendRows.map((e) => (
-                            <LegendCodeCard key={e.label} entry={e} setLegend={setLegend} />
+                            <LegendCodeCard key={e.label} entry={e} setLegend={setLegend} onRemove={removeLegend} />
                         ))}
                     </div>
                 ) : (

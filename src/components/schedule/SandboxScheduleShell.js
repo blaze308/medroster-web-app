@@ -16,6 +16,26 @@ import { getDefaultRuleModes, normalizeRuleModes } from '../../lib/rule-modes';
 import { clearGuestSchedule } from '../../lib/guest-storage';
 import RuleModesPanel from '../shared/RuleModesPanel';
 
+const GUEST_RANKS = [
+    'Staff Nurse',
+    'Nursing Officer',
+    'Senior Nursing Officer',
+    'Principal Nursing Officer',
+    'Rotation Midwife',
+    'House Officer',
+    'Medical Officer',
+];
+
+const WARD_4B_DEMO = [
+    ['Faustina', 'Mensah', 'Principal Nursing Officer'],
+    ['Kwame', 'Boateng', 'Senior Nursing Officer'],
+    ['Akua', 'Serwaah', 'Nursing Officer'],
+    ['Benedicta', 'Osei', 'Staff Nurse'],
+    ['Comfort', 'Tetteh', 'Senior Nursing Officer'],
+    ['Emmanuel', 'Donkor', 'Nursing Officer'],
+    ['Doris', 'Annan', 'Staff Nurse'],
+];
+
 const CLEAR_OPTIONS = [
     {
         id: 'setup',
@@ -102,6 +122,8 @@ export default function SandboxScheduleShell({
     onExportPdf,
     exporting = false,
     extraActions = null,
+    exportsLeft = null,
+    exportLimit = null,
 }) {
     const shiftTypes = useMemo(() => sandboxShiftTypes(), []);
     const [picker, setPicker] = useState(null);
@@ -193,6 +215,62 @@ export default function SandboxScheduleShell({
         setNewFirst('');
         setNewLast('');
         setToast('');
+    };
+
+    const addChargeNurse = () => {
+        setNewRank('Senior Nursing Officer');
+        if (!newFirst.trim() || !newLast.trim()) {
+            setToast('Rank set to Senior Nursing Officer. Enter a name, then Add.');
+            return;
+        }
+        if (Number.isFinite(maxStaff) && staff.length >= maxStaff) {
+            setToast(`Limited to ${maxStaff} staff. Register or upgrade for more.`);
+            return;
+        }
+        patch({
+            staff: [
+                ...staff,
+                {
+                    _id: `${mode}_${Date.now()}`,
+                    firstName: newFirst.trim(),
+                    lastName: newLast.trim(),
+                    rank: 'Senior Nursing Officer',
+                    wardRole: 'regular',
+                },
+            ],
+        });
+        setNewFirst('');
+        setNewLast('');
+        setToast('Charge nurse added in this browser.');
+    };
+
+    const loadDemoTeam = () => {
+        const existing = new Set(staff.map((person) => `${person.firstName} ${person.lastName}`.trim().toLowerCase()));
+        const incoming = WARD_4B_DEMO
+            .filter(([first, last]) => !existing.has(`${first} ${last}`.toLowerCase()))
+            .map(([first, last, rank], index) => ({
+                _id: `${mode}_demo_${Date.now()}_${index}`,
+                firstName: first,
+                lastName: last,
+                rank,
+                wardRole: 'regular',
+            }));
+        if (!incoming.length) {
+            setToast('Ward 4B demo team is already on this roster.');
+            return;
+        }
+        const room = Number.isFinite(maxStaff) ? Math.max(0, maxStaff - staff.length) : incoming.length;
+        const next = incoming.slice(0, room);
+        if (!next.length) {
+            setToast(`Limited to ${maxStaff} staff. Register or upgrade for more.`);
+            return;
+        }
+        patch({
+            staff: [...staff, ...next],
+            wardName: 'Ward 4B',
+            name: schedule?.name || 'Ward 4B',
+        });
+        setToast(`Added ${next.length} clinicians from the Ward 4B demo team. Saved in this browser.`);
     };
 
     const removeStaff = (id) => {
@@ -374,28 +452,78 @@ export default function SandboxScheduleShell({
         </div>
     );
 
-    return (
-        <div className="min-h-screen bg-ghs-surface">
-            {banner}
+    const exportQuota = exportLimit != null
+        ? `${exportsLeft} of ${exportLimit}`
+        : null;
 
-            <div className="max-w-6xl mx-auto px-3 sm:px-4 py-6 md:py-8">
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 mb-6">
-                    <div className="min-w-0">
-                        <Link href={backHref} className="text-xs font-bold text-ghs-muted hover:text-ghs-teal">
-                            {backLabel}
-                        </Link>
-                        <h1 className="text-xl md:text-2xl font-extrabold text-ghs-deep mt-2 truncate">{title}</h1>
-                        {subtitle ? <p className="text-sm text-ghs-muted mt-1">{subtitle}</p> : null}
-                        <p className="text-xs text-ghs-muted mt-1">
-                            {formatRange(schedule?.startDate, schedule?.endDate)}
-                            {daysInRange ? ` · ${daysInRange} days` : ''}
-                            {Number.isFinite(maxStaff)
-                                ? ` · ${staff.length}/${maxStaff} staff`
-                                : ` · ${staff.length} staff`}
-                            {assignments.length ? ` · ${assignments.length} shifts` : ''}
+    return (
+        <div className={mode === 'guest' ? 'min-h-screen bg-slate-canvas text-slate-black flex flex-col' : 'min-h-screen bg-ghs-surface'}>
+            {mode === 'guest' ? (
+                <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+                    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <Link href={backHref} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-muted hover:text-emerald-deep px-2.5 py-1.5 rounded-lg hover:bg-slate-100 shrink-0">
+                                Home Portal
+                            </Link>
+                            <span className="text-slate-300 hidden sm:inline">/</span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mint-surface text-emerald-deep border border-mint-border">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Guest Sandbox Mode
+                            </span>
+                            <span className="hidden md:inline text-xs text-slate-muted">Auto-saved locally in browser</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            {exportQuota && (
+                                <span className="hidden sm:inline text-xs font-medium text-slate-body bg-surface-container-low px-2.5 py-1 rounded-md border border-slate-200">
+                                    <span className="font-bold text-emerald-deep">{exportQuota}</span> exports left
+                                </span>
+                            )}
+                            <Link href="/roster-rules" className="text-xs font-semibold text-slate-body hover:text-slate-black">
+                                Help & Docs
+                            </Link>
+                        </div>
+                    </div>
+                </header>
+            ) : banner}
+
+            <div className={mode === 'guest' ? 'flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6' : 'max-w-6xl mx-auto px-3 sm:px-4 py-6 md:py-8'}>
+                <div className={`flex flex-col md:flex-row md:justify-between gap-4 ${mode === 'guest' ? 'md:items-start pb-2 border-b border-slate-200' : 'md:items-start mb-6'}`}>
+                    <div className="min-w-0 flex-1">
+                        {mode !== 'guest' && (
+                            <Link href={backHref} className="text-xs font-bold text-ghs-muted hover:text-ghs-teal">
+                                {backLabel}
+                            </Link>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h1 className={mode === 'guest' ? 'text-2xl sm:text-3xl font-extrabold text-slate-black tracking-tight' : 'text-xl md:text-2xl font-extrabold text-ghs-deep mt-2 truncate'}>{title}</h1>
+                            {mode === 'guest' && staff.length === 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-surface text-amber-shift border border-amber-200">
+                                    Unsaved Draft
+                                </span>
+                            )}
+                        </div>
+                        {mode !== 'guest' && subtitle ? <p className="text-sm text-ghs-muted mt-1">{subtitle}</p> : null}
+                        <p className={mode === 'guest' ? 'mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-muted font-medium' : 'text-xs text-ghs-muted mt-1'}>
+                            {mode === 'guest' ? (
+                                <span>
+                                    <span className="font-semibold text-slate-black">{formatRange(schedule?.startDate, schedule?.endDate)}</span>
+                                    {` · ${daysInRange} days cycle · `}
+                                    <span className="font-semibold text-slate-black">{`${staff.length} clinician${staff.length === 1 ? '' : 's'} enrolled`}</span>
+                                    {' · Max 1 month'}
+                                </span>
+                            ) : (
+                                <>
+                                    {formatRange(schedule?.startDate, schedule?.endDate)}
+                                    {daysInRange ? ` · ${daysInRange} days` : ''}
+                                    {Number.isFinite(maxStaff)
+                                        ? ` · ${staff.length}/${maxStaff} staff`
+                                        : ` · ${staff.length} staff`}
+                                    {assignments.length ? ` · ${assignments.length} shifts` : ''}
+                                </>
+                            )}
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className={`flex flex-wrap gap-2 ${mode === 'guest' ? 'md:max-w-sm md:justify-end' : ''}`}>
                         {!guestEmptyOnboarding && (
                             <button
                                 type="button"
@@ -494,7 +622,7 @@ export default function SandboxScheduleShell({
                     </div>
                 </div>
 
-                {toast && (
+                {toast && !guestEmptyOnboarding && (
                     <div className="mb-4 rounded-xl border border-slate-100 bg-white px-4 py-3 text-xs font-bold text-ghs-deep">
                         {toast}
                     </div>
@@ -542,40 +670,104 @@ export default function SandboxScheduleShell({
                 )}
 
                 {guestEmptyOnboarding && (
-                    <div className="mb-6 space-y-3 max-w-lg mx-auto">
-                        <button
-                            type="button"
-                            data-tour="import-staff"
-                            onClick={() => setShowImport(true)}
-                            className="w-full rounded-2xl border-2 border-dashed border-ghs-teal/45 bg-gradient-to-b from-ghs-teal/[0.07] to-white px-4 py-7 text-center hover:border-ghs-teal hover:from-ghs-teal/10 transition-colors cursor-pointer"
-                        >
-                            <div className="mx-auto mb-2.5 flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-ghs-teal/20 text-ghs-teal shadow-sm">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                    <rect x="3" y="4" width="18" height="16" rx="2" />
-                                    <circle cx="8.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
-                                    <path d="M21 15l-5-5L5 21" />
-                                </svg>
-                            </div>
-                            <p className="text-base font-extrabold text-ghs-deep">Upload staff data</p>
-                            <p className="text-xs font-medium text-ghs-muted mt-1 max-w-sm mx-auto leading-snug">
-                                Photo, PDF, Word, or Excel — we read names and shifts.
+                    <>
+                        <div className="bg-mint-surface/70 border border-mint-border rounded-xl px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <p className="text-xs sm:text-sm text-emerald-deep">
+                                {toast || 'Clean slate — ward parameters, shifts, and staff cleared. Ready for your data.'}
                             </p>
-                            <span className="inline-block mt-3 h-9 px-5 rounded-lg bg-ghs-teal text-white text-xs font-bold leading-9">
-                                Choose roster file
-                            </span>
-                            <p className="text-[10px] font-medium text-ghs-muted mt-2">
-                                Recommended · max 10 MB
-                            </p>
-                        </button>
-
-                        <div className="bg-white rounded-2xl border border-slate-100 p-4" data-tour="roster-staff">
-                            <p className="text-sm font-extrabold text-ghs-deep">Add manually</p>
-                            <p className="text-[11px] font-medium text-ghs-muted mt-0.5 mb-3">
-                                One person at a time if you don&apos;t have a roster file yet.
-                            </p>
-                            {staffAddForm}
+                            <button type="button" onClick={loadDemoTeam} className="text-xs font-semibold text-emerald-deep bg-white hover:bg-mint-surface px-2.5 py-1 rounded-md border border-mint-border cursor-pointer shrink-0">
+                                Load Sample Ward
+                            </button>
                         </div>
-                    </div>
+                        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="p-8 sm:p-12">
+                                <button
+                                    type="button"
+                                    data-tour="import-staff"
+                                    onClick={() => setShowImport(true)}
+                                    className="max-w-2xl mx-auto w-full rounded-xl p-8 sm:p-10 text-center bg-mint-surface/40 border-2 border-dashed border-emerald-deep/30 hover:bg-mint-surface/70 cursor-pointer"
+                                >
+                                    <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white text-emerald-deep border border-mint-border mb-4">
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                                            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </span>
+                                    <span className="block text-lg sm:text-xl font-bold text-slate-black mb-1">Upload staff data</span>
+                                    <span className="block text-xs sm:text-sm text-slate-body max-w-md mx-auto mb-6">
+                                        Photo, PDF, Word, or Excel — we read clinician names, existing duty schedules, and notes.
+                                    </span>
+                                    <span className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-on-primary bg-emerald-deep">
+                                        Choose roster file
+                                    </span>
+                                    <span className="block text-[11px] font-medium text-slate-muted mt-3">
+                                        Recommended: duty photo or .xlsx sheet · max 10 MB
+                                    </span>
+                                    <span className="mt-6 pt-5 border-t border-dashed border-slate-200 flex flex-wrap justify-center gap-2 text-[11px] font-medium text-slate-body">
+                                        <span className="px-2 py-0.5 bg-white border border-slate-200 rounded">Photo / camera</span>
+                                        <span className="px-2 py-0.5 bg-white border border-slate-200 rounded">PDF</span>
+                                        <span className="px-2 py-0.5 bg-white border border-slate-200 rounded">Excel / CSV</span>
+                                        <span className="px-2 py-0.5 bg-white border border-slate-200 rounded">Word</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </section>
+                        <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-sm" data-tour="roster-staff">
+                            <h2 className="text-base font-bold text-slate-black">Add manually</h2>
+                            <p className="text-xs text-slate-muted mt-0.5 mb-4">One person at a time if you don&apos;t have a roster file yet.</p>
+                            <form
+                                className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+                                onSubmit={(event) => { event.preventDefault(); addStaff(); }}
+                            >
+                                <input
+                                    className="sm:col-span-4 h-11 w-full px-3.5 rounded-lg border border-slate-300 text-sm"
+                                    placeholder="First name"
+                                    aria-label="First name"
+                                    value={newFirst}
+                                    onChange={(e) => setNewFirst(e.target.value)}
+                                />
+                                <input
+                                    className="sm:col-span-4 h-11 w-full px-3.5 rounded-lg border border-slate-300 text-sm"
+                                    placeholder="Last name"
+                                    aria-label="Last name"
+                                    value={newLast}
+                                    onChange={(e) => setNewLast(e.target.value)}
+                                />
+                                <select
+                                    className="sm:col-span-3 h-11 w-full px-3 rounded-lg border border-slate-300 text-sm bg-white"
+                                    aria-label="Clinical role"
+                                    value={newRank}
+                                    onChange={(e) => setNewRank(e.target.value)}
+                                >
+                                    {GUEST_RANKS.map((rank) => <option key={rank}>{rank}</option>)}
+                                </select>
+                                <button type="submit" className="sm:col-span-1 h-11 w-full rounded-lg font-bold text-sm text-emerald-deep border border-emerald-deep hover:bg-emerald-deep hover:text-on-primary cursor-pointer">
+                                    Add
+                                </button>
+                            </form>
+                            <div className="pt-3 flex flex-wrap items-center gap-2 text-xs text-slate-muted">
+                                <span>Quick adds:</span>
+                                <button type="button" onClick={addChargeNurse} className="font-semibold text-emerald-deep underline underline-offset-2 cursor-pointer">
+                                    Add charge nurse
+                                </button>
+                                <span>·</span>
+                                <button type="button" onClick={loadDemoTeam} className="font-semibold text-emerald-deep underline underline-offset-2 cursor-pointer">
+                                    Pre-fill Ward 4B demo team
+                                </button>
+                            </div>
+                        </section>
+                        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {[
+                                ['Hospital compliance ready', 'Auto-validates the 48-hour rest after night blocks and weekly hour caps when you generate.'],
+                                ['Shift coverage balance', 'Fills Morning, Afternoon, and Night cover from the staff you add.'],
+                                ['Ward noticeboard ready', 'Export a printable PDF, Excel, or CSV roster from this browser.'],
+                            ].map(([heading, body]) => (
+                                <div key={heading} className="bg-white p-4 rounded-xl border border-slate-200">
+                                    <h3 className="text-xs font-bold text-slate-black">{heading}</h3>
+                                    <p className="text-[11px] text-slate-muted mt-1 leading-relaxed">{body}</p>
+                                </div>
+                            ))}
+                        </section>
+                    </>
                 )}
 
                 {!guestEmptyOnboarding && schedule?.startDate && schedule?.endDate && (
@@ -618,6 +810,18 @@ export default function SandboxScheduleShell({
                     </div>
                 )}
             </div>
+
+            {mode === 'guest' && (
+                <footer className="mt-auto border-t border-slate-200 bg-white py-4 text-xs text-slate-muted">
+                    <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <p>MedRoster clinical rostering · confidential clinical use</p>
+                        <div className="flex items-center gap-4">
+                            <Link href="/roster-rules" className="hover:text-slate-black">Act 651 rules</Link>
+                            <span>Saved only in this browser</span>
+                        </div>
+                    </div>
+                </footer>
+            )}
 
             {picker && (
                 <ShiftPicker

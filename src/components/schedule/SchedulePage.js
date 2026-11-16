@@ -10,6 +10,8 @@ import SettingsModal from './SettingsModal';
 import { exportRosterPdf } from '../../lib/pdf-export';
 import { exportRosterCsv, exportRosterExcel } from '../../lib/spreadsheet-export';
 import { useFirebaseAuth } from '../FirebaseAuthProvider';
+import HospitalShell from '../hospital/HospitalShell';
+import MsIcon from '../landing/MsIcon';
 
 function formatRange(start, end) {
     const s = new Date(start);
@@ -30,6 +32,8 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
     const [statusToast, setStatusToast] = useState(null); // { kind: 'success' | 'error', message }
     const [exporting, setExporting] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
+    const [rank, setRank] = useState('ALL');
+    const [query, setQuery] = useState('');
 
     const fetchSchedule = useCallback(async () => {
         try {
@@ -52,7 +56,15 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
         return () => clearTimeout(t);
     }, [statusToast]);
 
-    const filteredStaff = useMemo(() => (data ? data.staff : []), [data]);
+    const filteredStaff = useMemo(() => {
+        if (!data) return [];
+        return (data.staff || []).filter((person) => {
+            const matchesRank = rank === 'ALL' || (person.rank || '') === rank;
+            const text = query.trim().toLowerCase();
+            const matchesQuery = !text || `${person.firstName || ''} ${person.lastName || ''} ${person.rank || ''}`.toLowerCase().includes(text);
+            return matchesRank && matchesQuery;
+        });
+    }, [data, rank, query]);
 
     const handleExport = async (format = 'pdf') => {
         if (!data) return;
@@ -172,35 +184,25 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
     const ward = wards?.find((w) => String(w._id) === String(schedule.wardId));
     const department = departments?.find((d) => String(d._id) === String(schedule.departmentId));
 
-    return (
-        <div className="min-h-screen bg-ghs-surface text-ghs-deep">
-            <header className="bg-white border-b border-slate-100 sticky top-0 z-30">
-                <div className="px-4 md:px-10 py-3 md:py-4 flex flex-col gap-3 md:gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <button
-                            onClick={() => router.push(`/hospital/${hospitalId}`)}
-                            className="w-10 h-10 shrink-0 rounded-xl bg-ghs-surface text-ghs-muted hover:text-ghs-teal flex items-center justify-center transition-all cursor-pointer"
-                            aria-label="Back"
-                        >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M15 18l-6-6 6-6" />
-                            </svg>
-                        </button>
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-ghs-muted uppercase tracking-widest truncate">{hospital.name}</p>
-                            <h1 className="text-base md:text-xl font-extrabold tracking-tight truncate">
-                                <span className="block sm:inline">{schedule.name || 'Ward Schedule'}</span>
-                                <span className="hidden sm:inline"> · </span>
-                                <span className="block sm:inline text-sm md:text-xl font-bold md:font-extrabold text-ghs-muted md:text-ghs-deep">
-                                    {formatRange(schedule.startDate, schedule.endDate)}
-                                </span>
-                            </h1>
-                            <p className="text-xs font-bold text-ghs-muted mt-1 truncate">
-                                {department?.name || 'Department'} / {ward?.name || 'Ward'}
-                            </p>
-                        </div>
-                    </div>
+    const ranks = ['ALL', ...new Set((data.staff || []).map((person) => person.rank).filter(Boolean))];
 
+    return (
+        <HospitalShell
+            hospital={{ ...hospital, _id: hospital._id || hospitalId, departments, wards }}
+            active="schedules"
+            breadcrumb={[department?.name || 'Directorate', ward?.name || schedule.name || 'Schedule']}
+            scheduleHref={`/hospital/${hospitalId}/schedule/${scheduleId}`}
+            search={query}
+            onSearch={setQuery}
+            onPublish={canWrite ? handleGenerate : undefined}
+        >
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+                    <div>
+                        <p className="text-[11px] uppercase tracking-wider font-semibold text-teal-brand">{hospital.name}</p>
+                        <h1 className="landing-headline">{ward?.name || 'Ward schedule'}</h1>
+                        <p className="text-sm text-slate-muted">{schedule.name || 'Ward Schedule'} · {formatRange(schedule.startDate, schedule.endDate)}</p>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                         {canWrite && (
                         <>
@@ -294,14 +296,31 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                         )}
                     </div>
                 </div>
-                <div className="px-4 md:px-10 pb-3">
-                    <div className="inline-flex items-center gap-2 min-h-8 px-3 py-1.5 rounded-lg bg-ghs-surface text-[10px] md:text-[11px] font-bold text-ghs-muted leading-snug">
-                        Ward-specific roster: staff cannot be interchanged across wards.
-                    </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    {ranks.map((item) => (
+                        <button
+                            key={item}
+                            type="button"
+                            onClick={() => setRank(item)}
+                            className={`px-2.5 py-1 rounded text-[11px] font-semibold cursor-pointer ${rank === item ? 'bg-emerald-deep text-on-primary' : 'bg-surface-container text-slate-body'}`}
+                        >
+                            {item === 'ALL' ? 'All ranks' : item}
+                        </button>
+                    ))}
                 </div>
-            </header>
-
-            <main className="px-4 md:px-10 py-4 md:py-6 pb-28 md:pb-6" data-tour="schedule-calendar">
+                <div className="flex flex-wrap gap-3 text-[11px] text-slate-body">
+                    {(hospital.shiftTypes || []).slice(0, 6).map((shift) => (
+                        <span key={shift.id || shift._id || shift.name} className="inline-flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded bg-mint-surface" /> {shift.name}
+                        </span>
+                    ))}
+                    <span className="inline-flex items-center gap-1 text-forest-mid font-semibold">
+                        <MsIcon name="touch_app" className="text-[16px]" /> Click a cell to edit
+                    </span>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-muted">Ward-specific roster: staff cannot be interchanged across wards.</p>
+            </div>
+            <div data-tour="schedule-calendar">
                 <CalendarGrid
                     startDate={schedule.startDate}
                     endDate={schedule.endDate}
@@ -311,7 +330,7 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                     onCellClick={handleCellClick}
                     rosterSetup={wardRosterSetup}
                 />
-            </main>
+            </div>
 
             <ValidationPanel hospitalId={hospitalId} scheduleId={scheduleId} dataVersion={data.assignments.length} />
 
@@ -348,6 +367,6 @@ export default function SchedulePage({ hospitalId, scheduleId }) {
                     {statusToast.message}
                 </div>
             )}
-        </div>
+        </HospitalShell>
     );
 }

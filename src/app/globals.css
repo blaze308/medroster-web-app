@@ -37,6 +37,38 @@
   /* Shadows */
   --shadow-synclly: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
   --shadow-synclly-lg: 0 25px 50px -12px rgb(0 0 0 / 0.08);
+
+  /* Stitch landing palette — does not replace ghs-* */
+  --color-surface: #f8f9ff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container: #e6eeff;
+  --color-surface-container-high: #dde9ff;
+  --color-outline-variant: #bfc9c3;
+  --color-slate-black: #0f172a;
+  --color-on-error: #ffffff;
+  --color-mint-surface: #e8f5ee;
+  --color-mint-border: #d1ebe1;
+  --color-emerald-deep: #0a4d3c;
+  --color-forest-mid: #0f5a44;
+  --color-teal-brand: #0b5c57;
+  --color-on-surface: #0d1c2f;
+  --color-on-surface-variant: #404945;
+  --color-stitch-primary: #003528;
+  --color-primary-container: #0a4d3c;
+  --color-on-primary: #ffffff;
+  --color-secondary-container: #a7ece5;
+  --color-on-secondary-container: #256d68;
+  --color-stitch-secondary: #206963;
+  --color-slate-muted: #64748b;
+  --color-slate-body: #334155;
+  --color-slate-canvas: #f8fafc;
+  --color-amber-shift: #d97706;
+  --color-amber-surface: #fef3c7;
+  --color-crimson-alert: #be123c;
+  --color-crimson-surface: #ffe4e6;
+  --color-primary-fixed: #b2efd8;
+  --color-primary-fixed-dim: #96d3bc;
 }
 
 :root {
@@ -208,4 +240,69 @@ html.mr-reading * {
 
 .medroster-driver-popover .driver-popover-close-btn {
   color: #556370 !important;
+}
+
+/* Landing headings beat the global h1–h4 rules */
+.landing-display {
+  font-size: 36px;
+  line-height: 44px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #0d1c2f;
+  text-transform: none;
+}
+
+.landing-display-inverse {
+  color: #ffffff;
+}
+
+@media (min-width: 1024px) {
+  .landing-display-hero {
+    font-size: 48px;
+    line-height: 56px;
+  }
+
+  .landing-display-cta {
+    font-size: 42px;
+    line-height: 50px;
+  }
+}
+
+.landing-headline {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0d1c2f;
+  text-transform: none;
+}
+
+.landing-headline-inverse {
+  color: #ffffff;
+}
+
+.landing-title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  color: #0d1c2f;
+  text-transform: none;
+  letter-spacing: -0.015em;
+}
+
+.landing-subtitle {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: #0d1c2f;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.landing-subtitle-alert {
+  color: #be123c;
+}
+
+.landing-subtitle-ok {
+  color: #0a4d3c;
 }

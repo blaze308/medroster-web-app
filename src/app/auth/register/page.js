@@ -10,6 +10,7 @@ import GoogleSignInButton, { AuthDivider } from '../../../components/auth/Google
 import AccountTypePicker from '../../../components/auth/AccountTypePicker';
 import PhoneAuthPanel from '../../../components/auth/PhoneAuthPanel';
 import { takeGuestDataForMigration } from '../../../lib/guest-storage';
+import AuthGateway from '../../../components/auth/AuthGateway';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -179,15 +180,8 @@ export default function RegisterPage() {
         'w-full h-13 bg-ghs-surface border border-slate-100 rounded-2xl px-4 text-sm font-semibold text-ghs-deep placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-ghs-teal/10 focus:border-ghs-teal transition-all';
 
     return (
-        <div className="min-h-screen bg-ghs-surface flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-10">
-                    <img src="/logo.svg" alt="MedRoster" className="inline-block w-16 h-16 rounded-[20px] mb-5 shadow-lg shadow-ghs-teal/25" />
-                    <h1 className="text-3xl font-extrabold text-ghs-deep tracking-tight">MedRoster</h1>
-                    <p className="text-ghs-muted font-medium mt-1 text-sm">Create your account</p>
-                </div>
-
-                <div className="bg-white rounded-[32px] shadow-synclly border border-slate-100 p-8">
+        <AuthGateway tab="register">
+            <div>
                     {step === 0 && (
                         <>
                             <h2 className="text-xl font-extrabold text-ghs-deep mb-1">How will you use MedRoster?</h2>
@@ -322,14 +316,7 @@ export default function RegisterPage() {
                             )}
                         </>
                     )}
-                </div>
-
-                <p className="text-center text-xs text-ghs-muted mt-6 font-medium">
-                    <Link href="/" className="hover:text-ghs-teal transition-colors">← Back to home</Link>
-                    {' · '}
-                    <Link href="/auth/join" className="hover:text-ghs-teal transition-colors">Join a hospital</Link>
-                </p>
             </div>
-        </div>
+        </AuthGateway>
     );
 }

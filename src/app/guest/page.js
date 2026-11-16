@@ -133,6 +133,8 @@ export default function GuestPage() {
                 backLabel="← Home"
                 onExport={handleExport}
                 exporting={exporting}
+                exportsLeft={exportsLeft}
+                exportLimit={getGuestExportLimit()}
             />
             {exportLimitModal && (
                 <ConfirmModal

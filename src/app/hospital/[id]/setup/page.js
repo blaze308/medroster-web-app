@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DepartmentTemplatePicker from '../../../../components/modals/DepartmentTemplatePicker';
+import HospitalShell from '../../../../components/hospital/HospitalShell';
 import { apiFetch } from '../../../../lib/api';
 import { useFirebaseAuth } from '../../../../components/FirebaseAuthProvider';
 
@@ -27,10 +28,6 @@ export default function HospitalSetupPage() {
             try {
                 const data = await apiFetch(`/api/hospitals/${id}`);
                 if (!active) return;
-                if (data.departments && data.departments.length > 0) {
-                    router.replace(`/hospital/${id}`);
-                    return;
-                }
                 setHospital(data);
             } catch {
                 router.push('/');
@@ -70,29 +67,44 @@ export default function HospitalSetupPage() {
     if (!hospital) return null;
 
     return (
-        <div className="min-h-screen bg-synclly-surface text-synclly-deep py-16 px-6">
-            <div className="max-w-4xl mx-auto mb-10">
-                <button
-                    onClick={() => router.push('/')}
-                    className="text-xs font-bold text-synclly-muted hover:text-synclly-coral transition-colors mb-6 flex items-center gap-2"
-                >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                    BACK TO HOSPITALS
-                </button>
-                <h1 className="text-3xl font-extrabold tracking-tight mb-1">{hospital.name}</h1>
-                <p className="text-synclly-muted font-medium text-sm">
-                    {hospital.type} · {hospital.region}
-                </p>
+        <HospitalShell hospital={hospital} active="setup" breadcrumb={['Facility setup']}>
+            <div className="max-w-4xl flex flex-col gap-6">
+                <div>
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-forest-mid">Institutional onboarding</p>
+                    <h1 className="landing-headline">Facility setup</h1>
+                    <p className="text-sm text-slate-body mt-1">
+                        {hospital.name} · {hospital.type} · {hospital.region}. Choose the wards for this facility. Labour Act 651 rest rules stay on each ward schedule.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                        ['1', 'Facility', hospital.name],
+                        ['2', 'Wards', 'Pick departments below'],
+                        ['3', 'Act 651', 'Applied when you roster'],
+                    ].map(([num, title, body]) => (
+                        <div key={num} className="bg-surface-container-lowest rounded-xl p-4 shadow-sm">
+                            <span className="text-[11px] font-bold text-emerald-deep">{num}</span>
+                            <div className="font-semibold text-slate-black">{title}</div>
+                            <p className="text-xs text-slate-muted mt-1">{body}</p>
+                        </div>
+                    ))}
+                </div>
+                {(hospital.departments || []).length > 0 ? (
+                    <div className="bg-surface-container-lowest rounded-xl p-5 shadow-sm">
+                        <p className="text-sm text-slate-body">Wards are already configured for this hospital.</p>
+                        <button type="button" onClick={() => router.push(`/hospital/${id}`)} className="mt-3 px-4 py-2 rounded-lg bg-emerald-deep text-on-primary text-[13px] font-semibold cursor-pointer">
+                            Back to overview
+                        </button>
+                    </div>
+                ) : (
+                    <DepartmentTemplatePicker
+                        onSave={handleSave}
+                        onSkip={() => router.push(`/hospital/${id}`)}
+                        busy={busy}
+                        error={error}
+                    />
+                )}
             </div>
-
-            <DepartmentTemplatePicker
-                onSave={handleSave}
-                onSkip={() => router.push(`/hospital/${id}`)}
-                busy={busy}
-                error={error}
-            />
-        </div>
+        </HospitalShell>
     );
 }

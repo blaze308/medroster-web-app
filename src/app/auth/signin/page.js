@@ -3,11 +3,11 @@
 import { useState, Suspense } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { auth, googleProvider, mapAuthError } from '../../../lib/firebase';
 import { apiFetch } from '../../../lib/api';
 import GoogleSignInButton, { AuthDivider } from '../../../components/auth/GoogleSignInButton';
 import PhoneAuthPanel from '../../../components/auth/PhoneAuthPanel';
+import AuthGateway from '../../../components/auth/AuthGateway';
 
 function SignInForm() {
     const router = useRouter();
@@ -84,26 +84,8 @@ function SignInForm() {
     };
 
     return (
-        <div className="min-h-screen bg-ghs-surface flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-10">
-                    <img src="/logo.svg" alt="MedRoster" className="inline-block w-16 h-16 rounded-[20px] mb-5 shadow-lg shadow-ghs-teal/25" />
-                    <h1 className="text-3xl font-extrabold text-ghs-deep tracking-tight">MedRoster</h1>
-                    <p className="text-ghs-muted font-medium mt-1 text-sm">Ghana Hospital Staff Scheduling</p>
-                </div>
-
-                <div className="bg-white rounded-[32px] shadow-synclly border border-slate-100 p-8">
-                    <h2 className="text-xl font-extrabold text-ghs-deep mb-1">Sign in to your account</h2>
-                    <p className="text-sm text-ghs-muted font-medium mb-7">
-                        Don&apos;t have an account?{' '}
-                        <Link href="/auth/register" className="text-ghs-teal font-bold hover:underline">
-                            Register
-                        </Link>
-                        {' · '}
-                        <Link href="/auth/join" className="text-ghs-teal font-bold hover:underline">
-                            Join hospital
-                        </Link>
-                    </p>
+        <AuthGateway tab="signin">
+            <div>
 
                     {!showPhone ? (
                         <>
@@ -162,15 +144,8 @@ function SignInForm() {
                             </button>
                         </div>
                     )}
-                </div>
-
-                <p className="text-center text-xs text-ghs-muted mt-6 font-medium">
-                    <Link href="/" className="hover:text-ghs-teal transition-colors">← Back to home</Link>
-                    {' · '}
-                    <Link href="/guest" className="hover:text-ghs-teal transition-colors">Try guest mode</Link>
-                </p>
             </div>
-        </div>
+        </AuthGateway>
     );
 }
 
